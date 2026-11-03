@@ -1,4 +1,4 @@
-# Digital Youth Mini-App — API Documentation
+# Digital Youth — API Documentation
 
 Version: 1.0
 Date: 2026-11-03
@@ -39,7 +39,9 @@ Response:
   "database": "connected"
 }
 
-## 3. Business Diagnostic Submission
+> **Product transition:** Business diagnostic endpoints below are retained legacy APIs for data preservation; the primary Digital Youth experience now uses the method platform in section 12. Existing diagnostic records have not been removed.
+
+## 3. Legacy Business Diagnostic Submission
 
 ### POST /api/diagnostic-submissions
 
@@ -397,20 +399,109 @@ The table stores:
 - Submission review status.
 - Creation and update timestamps.
 
-## 11. Frontend Integration
+## 11. Legacy Frontend Integration
 
 Participant frontend:
 - Use POST /api/diagnostic-submissions.
 - Use GET /api/health for API health checks.
 - Do not require admin credentials.
 
-Admin functionality:
+Legacy admin submission functionality:
 - Requires protected server-side authentication.
 - Never expose administrator passwords or session tokens in public frontend code.
-- Admin interface integration must use a secure server-side authentication layer.
+- The corrected method-research interface uses the existing protected session APIs and the methods endpoints in section 12.
 
 Development frontend origin:
 http://localhost:5173
 
 Backend:
 http://localhost:4000
+
+## 12. Independent Income Methods
+
+The current Digital Youth product uses method records and project validation experiments. Public visitors need no account. Personal checklist progress remains in browser-local storage and is not sent to this API by default.
+
+### Method states and qualification gate
+
+Method status is `draft`, `under_validation`, `qualified`, `rejected`, or `archived`. Only published, non-archived records in disclosed states are returned publicly. Qualification assessments use `pass`, `conditional`, `fail`, or `not_verified` and require an explanation. The four criterion codes are:
+
+- `phone_and_free_tools`
+- `independent_execution`
+- `no_credentials_or_preexisting_trust`
+- `no_meetings_or_sales_calls`
+
+An administrator cannot set a method to `qualified` unless exactly four criteria are present, all are `pass`, and each links to at least one approved evidence source for that method. Changing criteria or sources that invalidate this gate automatically unpublishes and returns the method to `under_validation`.
+
+The method editor saves method content, all four assessments, steps, tools and source references together using `PUT /api/admin/methods/:id/research`. This combined write is transactional. A database error rolls back the whole edit. Individual `/criteria`, `/steps`, `/tools`, and `/sources` writes remain available for integrations and apply their own transactional validation.
+
+### Public reads
+
+`GET /api/methods` accepts optional exact `category` and `status` filters. Public status values are `under_validation`, `qualified`, and `rejected`. It returns published methods and four criterion status indicators. Draft and private records are excluded.
+
+`GET /api/methods/:slug` returns public method content, assessments and explanations, execution steps, tools, and approved evidence sources. Administrative fields and unapproved sources are excluded.
+
+`GET /api/methods/:slug/experiments` returns only administrator-approved, completed project-validation records and approved evidence items. Actual income fields are actual recorded amounts, not estimates. Public approval requires at least one approved evidence item.
+
+Public method responses use a stable envelope: `{ method, criteria, steps, tools, sources }`. Public method and experiment reads have a short bounded cache lifetime. Authentication and administrator responses are marked private and non-cacheable.
+
+Unknown or unpublished slugs return 404. These reads are public and do not require an administrator session.
+
+### Administrator method endpoints
+
+All `/api/admin/methods` endpoints require the existing HttpOnly admin session. POST, PATCH and PUT requests also require `x-csrf-token`.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/admin/methods?page=1&limit=20` | Paginated methods and content-quality indicators |
+| POST | `/api/admin/methods` | Create a draft method |
+| GET | `/api/admin/methods/:id` | Retrieve complete method, criteria, steps, tools and sources |
+| PATCH | `/api/admin/methods/:id` | Update method text and metadata |
+| PATCH | `/api/admin/methods/:id/status` | Set review status and publication state, subject to qualification gate |
+| PUT | `/api/admin/methods/:id/criteria` | Replace all four qualification assessments |
+| PUT | `/api/admin/methods/:id/steps` | Replace ordered execution steps |
+| PUT | `/api/admin/methods/:id/tools` | Replace tool requirements |
+| PUT | `/api/admin/methods/:id/sources` | Update/replace sources while preserving submitted source IDs |
+
+Create method body:
+
+```json
+{
+  "slug": "example-method",
+  "title": "Example method",
+  "category": "Digital products",
+  "summary": "A concise description of the candidate.",
+  "overview": "What the individual actually does.",
+  "distribution": "How output may reach people and what remains unknown.",
+  "incomeMechanism": "Potential transaction mechanism and eligibility limitations.",
+  "requirements": {"device": "Not verified", "internet": "Not verified"},
+  "limitations": "Known risks and unverified requirements."
+}
+```
+
+Criteria body:
+
+```json
+{"criteria":[
+  {"code":"phone_and_free_tools","assessment":"not_verified","explanation":"Evidence summary.","sourceIds":[]},
+  {"code":"independent_execution","assessment":"not_verified","explanation":"Evidence summary.","sourceIds":[]},
+  {"code":"no_credentials_or_preexisting_trust","assessment":"not_verified","explanation":"Evidence summary.","sourceIds":[]},
+  {"code":"no_meetings_or_sales_calls","assessment":"not_verified","explanation":"Evidence summary.","sourceIds":[]}
+]}
+```
+
+The `steps`, `tools`, and `sources` PUT bodies use `{ "items": [...] }`. Step fields are `stepNumber`, `title`, `whatToDo`, `howToDo`, `toolNames`, `output`, `successLooksLike`, `commonProblems`, and `alternatives`. Tool fields are `name`, `purpose`, `officialUrl`, `freeConditions`, `limitations`, `phoneUsable` (`yes`, `limited`, `no`, `not_verified`) and `lastVerified`. Source fields are `title`, `url`, `sourceType`, `accessedAt`, `lastVerifiedAt`, `supportsClaim`, `supportsArea`, and `approved`. A source may include its existing numeric `id`; omitted IDs are created and existing IDs omitted from the submitted list are removed. The response returns saved IDs.
+
+### Administrator project-validation experiments
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/admin/experiments` | List project validation experiments |
+| POST | `/api/admin/experiments` | Create an internal experiment and evidence records |
+| GET | `/api/admin/experiments/:id` | Retrieve experiment and evidence |
+| PATCH | `/api/admin/experiments/:id` | Update experiment status, execution, results, approvals and evidence |
+
+All writes require `x-csrf-token`. Experiment statuses: `planned`, `in_progress`, `completed`, `paused`, `rejected`. Fields include `methodId`, `title`, `hypothesis`, `owner`, dates, tools, initial cost, actual spending, actual income, tasks, outputs, problems, final assessment, public approval and optional evidence. Evidence fields are `title`, `url`, `description`, `evidenceType`, `recordedOn`, and `publicApproved`. Amounts are nullable non-negative numbers, and each supplied amount requires its matching uppercase three-letter currency field (`initialCostCurrency`, `actualSpendingCurrency`, or `actualIncomeCurrency`). No estimate is treated as actual income. Public approval is limited to completed experiments with at least one approved evidence item.
+
+### Migration and data preservation
+
+Migration `004_income_methods.sql` adds method, assessment, step, tool, source, project-experiment and evidence tables. Migrations 001–003 and existing diagnostic data remain intact. Run migrations separately against the intended development database and the isolated `digital_youth_mini_app_test` database. No migration is reported as applied unless the database connection succeeds.

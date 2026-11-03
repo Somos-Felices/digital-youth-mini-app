@@ -1,209 +1,88 @@
-# Digital Youth Mini-App
+# Digital Youth — Independent Digital Income
 
-A business diagnostic submission backend with MySQL persistence, administrator authentication, submission review, and audit history.
+Digital Youth helps a young person explore practical digital income methods they can investigate and test independently with a phone and accessible tools. The platform documents requirements, distribution, costs, risks and actual evidence; it does not promise earnings.
 
-> **Project status:** Backend core implemented and tested. The frontend has not been implemented. Production hosting and infrastructure have not yet been configured.
+## Product principles
 
-## Technology
+Every candidate method is assessed against four requirements:
 
-- Node.js 20+
-- TypeScript
-- Express 5
-- MySQL 8 and `mysql2`
-- Zod request validation
-- Argon2id password hashing
-- Database-backed administrator sessions
-- Helmet, CORS, and Express Rate Limit
-- Node.js test runner and Supertest
+1. Start with a phone and free or clearly costed tools.
+2. Execute independently without Somos Felices or its resources.
+3. Start without professional credentials or pre-existing trust, while disclosing identity and eligibility requirements.
+4. Operate without meetings or sales calls.
 
-## Repository structure
+Each criterion has a `pass`, `conditional`, `fail` or `not_verified` result and a written explanation. A method may only be qualified when all four pass and each links to an approved evidence source. Initial method records are marked **under validation** and contain no experiment or earning claims.
 
-```text
-digital-youth-mini-app/
-├── backend/
-│   ├── src/
-│   │   ├── config/          # Environment and MySQL pool
-│   │   ├── middleware/      # Administrator session and CSRF checks
-│   │   ├── routes/          # Health, submissions, auth, admin APIs
-│   │   ├── schemas/         # Zod request schemas
-│   │   ├── scripts/         # Migration and admin bootstrap scripts
-│   │   └── services/        # Database and authentication services
-│   ├── tests/
-│   │   ├── integration/     # MySQL-backed API tests
-│   │   └── diagnosticSubmission.schema.test.ts
-│   ├── .env.example
-│   ├── package.json
-│   └── tsconfig.json
-├── docs/
-│   └── migrations/
-│       ├── 001_initial_schema.sql
-│       ├── 002_submission_status_history.sql
-│       └── 003_admin_authentication.sql
-├── frontend/                # Reserved for the frontend phase
-├── API_DOCUMENTATION.md
-├── README.md
-└── .gitignore
-```
+Personal visitor experiment progress (checklist, time, costs, outputs, actual received income and notes) is stored in that visitor’s browser. It is not uploaded to the API by default.
 
-## Prerequisites
+## Technology and structure
 
-- Node.js 20 or newer and npm
-- MySQL 8 or newer
-- Separate MySQL databases for development and integration tests
+- `frontend/`: Next.js App Router, React, TypeScript and Tailwind CSS.
+- `backend/`: Express 5, TypeScript, Zod and MySQL.
+- `docs/migrations/`: append-only SQL migrations. Migrations 001–003 are retained; migration 004 adds method research and project experiment tables without deleting diagnostic records.
+- Admin authentication keeps the existing Argon2id, HttpOnly session cookie and CSRF-protected session flow.
+
+The previous business diagnostic API, schema and records remain in place for data preservation, but are no longer part of the main visitor experience.
 
 ## Backend setup
 
-Open PowerShell in the repository root, then:
+Use Node.js 20+ and MySQL 8+. In `backend/`:
 
 ```powershell
-cd backend
 npm install
 Copy-Item .env.example .env
 ```
 
-Edit `backend/.env` with your local settings. Required application variables:
-
-| Variable | Purpose |
-|---|---|
-| `NODE_ENV` | `development`, `test`, or `production` |
-| `PORT` | API port (default: `4000`) |
-| `CORS_ORIGINS` | Comma-separated allowed browser origins |
-| `DB_HOST` | MySQL hostname |
-| `DB_PORT` | MySQL port (default: `3306`) |
-| `DB_NAME` | Development database name |
-| `DB_USER` | Application database account |
-| `DB_PASSWORD` | Application database password |
-| `DB_CONNECTION_LIMIT` | MySQL pool connection limit |
-
-The migration runner uses separate `MIGRATION_DB_*` settings. Use a migration account with the schema privileges required by the SQL migrations. Keep the runtime application account restricted to the permissions it needs.
-
-Do not commit `.env`, `.env.test`, database passwords, administrator passwords, session tokens, or other secrets.
-
-## Database and migrations
-
-The development database used by this project is `digital_youth_mini_app`. Integration tests use the separate `digital_youth_mini_app_test` database.
-
-Apply development migrations from `backend/`:
+Set the database and migration credentials in `backend/.env`. Keep secrets out of source control. Apply migrations additively to the intended development database:
 
 ```powershell
 npm run db:migrate
 ```
 
-The migration runner records applied versions in `schema_migrations` and skips versions already applied. The migrations are:
+For integration tests, configure `backend/.env.test` to use only `digital_youth_mini_app_test`, apply the migration runner with that isolated database configuration, and then run the tests. Never run test cleanup against the development database.
 
-| Migration | Purpose |
-|---|---|
-| `001_initial_schema` | Initial diagnostic-submission schema |
-| `002_submission_status_history` | Status-change audit history |
-| `003_admin_authentication` | Administrator users and sessions |
-
-Before running integration tests, configure `backend/.env.test` for `NODE_ENV=test` and the dedicated test database, then apply the migrations to that database using the migration configuration. Never point integration-test cleanup at the development database.
-
-## Create an administrator
-
-After applying the development migrations, create the first administrator from `backend/`:
-
-```powershell
-$securePassword = Read-Host "Enter administrator password" -AsSecureString
-$passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
-
-try {
-    $env:ADMIN_BOOTSTRAP_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
-    npm run admin:create
-    if ($LASTEXITCODE -ne 0) { throw "Administrator creation failed." }
-}
-finally {
-    Remove-Item Env:\ADMIN_BOOTSTRAP_PASSWORD -ErrorAction SilentlyContinue
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
-    $securePassword.Dispose()
-}
-```
-
-The script prompts for the administrator email and display name. Use a unique, strong password. Passwords are stored as Argon2id hashes; the plaintext password is not stored.
-
-## Run the API
-
-Development server:
+Run the API on port 4000:
 
 ```powershell
 npm run dev
 ```
 
-Default local API base URL: `http://localhost:4000`.
+## Frontend setup
 
-Build and run the compiled server:
+In `frontend/`, install dependencies and copy the environment example:
 
 ```powershell
-npm run build
-npm start
+npm install
+Copy-Item .env.example .env.local
+npm run dev
 ```
+
+The frontend runs at `http://localhost:5173` and uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`. Ensure backend `CORS_ORIGINS` permits `http://localhost:5173`. Admin browser requests use credentialed fetches; do not expose the HttpOnly session cookie to JavaScript.
+
+For production, set `NEXT_PUBLIC_API_BASE_URL` to the HTTPS API origin at build time; the Next.js bundle embeds this public endpoint. Set backend `CORS_ORIGINS` to the exact HTTPS website origin(s), without a path or trailing slash. Because administrator cookies use `SameSite=Lax`, deploy the web app and API on the same site (for example, sibling HTTPS subdomains) and verify that the browser accepts the API cookie. Do not use localhost fallbacks in a production build.
+
+## Routes
+
+Public: `/`, `/approach`, `/methods`, `/methods/[slug]`, `/my-experiments`.
+
+Administrator: `/admin/login`, `/admin`, `/admin/methods`, `/admin/methods/new`, `/admin/methods/[id]`, `/admin/experiments`.
 
 ## API overview
 
-See [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md) for request bodies, response formats, validation rules, and status codes.
+Public method reads:
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/api/health` | API health |
-| `GET` | `/api/health/db` | Database connectivity |
-| `POST` | `/api/diagnostic-submissions` | Submit a business diagnostic |
-| `POST` | `/api/auth/login` | Administrator login |
-| `GET` | `/api/auth/me` | Current administrator session |
-| `GET` | `/api/auth/csrf` | Rotate the session CSRF token |
-| `POST` | `/api/auth/logout` | Revoke the current session |
-| `GET` | `/api/admin/submissions` | Paginated submission listing |
-| `GET` | `/api/admin/submissions/:id` | Retrieve one submission |
-| `GET` | `/api/admin/submissions/:id/history` | Retrieve submission audit history |
-| `PATCH` | `/api/admin/submissions/:id/status` | Update review status |
+- `GET /api/methods` (optional `status` and `category` filters)
+- `GET /api/methods/:slug`
+- `GET /api/methods/:slug/experiments` (approved records only)
 
-Administrator endpoints use the `dy_admin_session` HttpOnly cookie. State-changing administrator requests require the `x-csrf-token` header. Browser clients must send credentials with authenticated cross-origin requests, and their origin must be included in `CORS_ORIGINS`.
+Protected administrator methods and project experiments are documented in [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md). Every administrator mutation requires the existing session cookie and `x-csrf-token`. The browser never connects to MySQL.
 
-## Submission and review behavior
+## Checks
 
-Diagnostic submissions capture the pilot location, participant and business details, current tools, operational pain, pain frequency, willingness to pay, optional budget, and follow-up consent. Contact details are stored only when follow-up consent is granted.
+From `backend/`: `npm run typecheck`, `npm run build`, `npm run test:unit`, and `npm run test:integration` (requires the isolated test database).
 
-Review statuses are:
+From `frontend/`: `npm run typecheck` and `npm run build`. Linting is not currently configured.
 
-- `new`
-- `reviewed`
-- `qualified`
-- `not_qualified`
-- `follow_up`
+Production starts use `npm start` from `backend/` and `npm start` from `frontend/`, after setting production database, API URL and exact HTTPS CORS origins. Confirm the built frontend has the intended API URL before release.
 
-Submission creation and its initial audit entry are committed in one transaction. Status changes and their audit entries are also committed together. Repeating the current status does not create a duplicate history entry.
-
-## Security controls
-
-The backend currently includes:
-
-- Helmet security headers and an explicit CORS origin allowlist
-- JSON request-body size limit
-- General API and administrator-login rate limits
-- Zod validation and parameterized SQL queries
-- Restricted application database credentials and separate migration credentials
-- Argon2id administrator password hashing
-- Database-backed sessions with hashed session and CSRF tokens
-- HttpOnly session cookies with an eight-hour lifetime
-- CSRF checks on state-changing administrator endpoints
-- Production configuration validation requiring explicit HTTPS CORS origins
-
-Production deployment still requires real production environment values, HTTPS hosting/reverse-proxy configuration, database provisioning, backups, monitoring, and secret management. These are not configured by this repository's local development setup.
-
-## Tests and quality checks
-
-Run from `backend/`:
-
-```powershell
-npm run typecheck
-npm run build
-npm run test:unit
-npm run test:integration
-npm test
-npm audit --audit-level=high
-```
-
-The integration suite uses `.env.test` and the isolated `digital_youth_mini_app_test` database. Its setup creates a temporary test administrator and cleans up its own test data. Do not use the development database for integration tests.
-
-## Current scope and next phase
-
-The backend API, database migrations, administrator authentication, administrative review endpoints, documentation, and automated tests are implemented. The `frontend/` directory is reserved for the next phase. Production deployment and infrastructure setup remain outstanding.
+Never report a test, migration or build as successful unless it was actually run. The seed candidate methods deliberately show unknowns and no fabricated results.
