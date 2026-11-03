@@ -15,6 +15,7 @@ import { pool } from "./config/database.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import diagnosticSubmissionRouter from "./routes/diagnosticSubmission.routes.js";
+import { methodsAdminRouter, methodsPublicRouter } from "./routes/methods.routes.js";
 
 export function createApp() {
   const app = express();
@@ -49,6 +50,17 @@ export function createApp() {
   app.use(express.json({ limit: "25kb" }));
   app.use(cookieParser());
 
+  // Private responses must never enter a browser or intermediary cache. The
+  // public method catalogue is content-only and receives a short bounded TTL.
+  app.use(["/api/auth", "/api/admin"], (_req, res, next) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    next();
+  });
+  app.use("/api/methods", (_req, res, next) => {
+    res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=10");
+    next();
+  });
+
   // General API rate limiting.
   app.use("/api", rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -59,6 +71,9 @@ export function createApp() {
 
   // Authentication routes.
   app.use("/api/auth", authRouter);
+
+  // Public, evidence-labeled independent-income method library.
+  app.use("/api/methods", methodsPublicRouter);
 
   // API health.
   app.get("/api/health", (_req, res) => {
@@ -92,6 +107,7 @@ export function createApp() {
   // Existing admin routes.
   // Admin endpoints use database-backed administrator sessions.
   app.use("/api/admin", adminRouter);
+  app.use("/api/admin", methodsAdminRouter);
 
   // 404 handler.
   app.use((_req, res) => {
