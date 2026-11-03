@@ -1,0 +1,5 @@
+export type Admin = { id: number; email: string; displayName: string };
+export type Pagination = { page: number; limit: number; total: number; totalPages: number };
+export type LocalExperiment = { slug: string; title: string; startedAt: string; completedSteps: number[]; paused: boolean; timeMinutes: number; costs: { date: string; amount: number; currency: string; note: string }[]; income: { date: string; amount: number; currency: string; note: string }[]; outputs: string[]; notes: string };
+export type Submission = { id: number; submission_uuid: string; pilot_location: string; participant_name: string; business_name: string | null; business_type: string; current_tools: string[] | string; biggest_operational_pain: string; pain_frequency: string; willingness_to_pay: string; budget_amount: number | null; budget_currency: string | null; follow_up_consent: boolean | number; contact_name: string | null; contact_method: string | null; contact_value: string | null; submission_status: string; created_at: string; updated_at: string };
+export const statuses = ["new", "reviewed", "qualified", "not_qualified", "follow_up"] as const;

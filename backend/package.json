@@ -10,7 +10,7 @@
                     "typecheck":  "tsc --noEmit",
                     "db:migrate":  "tsx src/scripts/migrate.ts",
                     "test:integration":  "tsx --test tests/integration/database.integration.test.ts",
-                    "test:unit":  "tsx --test tests/diagnosticSubmission.schema.test.ts",
+                    "test:unit":  "tsx --test tests/diagnosticSubmission.schema.test.ts tests/incomeMethods.schema.test.ts tests/methodDetail.contract.test.ts",
                     "admin:create":  "tsx src/scripts/createAdmin.ts"
                 },
     "keywords":  [
