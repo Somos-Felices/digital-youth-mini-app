@@ -19,7 +19,7 @@ Personal visitor experiment progress (checklist, time, costs, outputs, actual re
 
 - `frontend/`: Next.js App Router, React, TypeScript and Tailwind CSS.
 - `backend/`: Express 5, TypeScript, Zod and MySQL.
-- `docs/migrations/`: append-only SQL migrations. Migrations 001–003 are retained; migration 004 adds method research and project experiment tables without deleting diagnostic records.
+- `docs/migrations/`: append-only SQL migrations. Migration 005 adds the opportunity directory; migration 006 adds execution steps, audit history, source review metadata and project research experiments; migration 007 seeds the three candidates; migration 008 adds research evidence and payment records; migration 009 links received payments to their approved income evidence. Original method and diagnostic records remain intact.
 - Admin authentication keeps the existing Argon2id, HttpOnly session cookie and CSRF-protected session flow.
 
 The previous business diagnostic API, schema and records remain in place for data preservation, but are no longer part of the main visitor experience.
@@ -59,13 +59,17 @@ npm run dev
 
 The frontend runs at `http://localhost:5173` and uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`. Ensure backend `CORS_ORIGINS` permits `http://localhost:5173`. Admin browser requests use credentialed fetches; do not expose the HttpOnly session cookie to JavaScript.
 
+Install Playwright's pinned Chromium once with `npx playwright install chromium` from `frontend/`. From `backend/`, `npm run browser:e2e` builds both apps and starts its own frontend and API on available local ports. It refuses to run unless `.env.test` selects `digital_youth_mini_app_test`, verifies the API's connected database, and removes its unique temporary opportunity and administrator in foreign-key-safe order.
+
 For production, set `NEXT_PUBLIC_API_BASE_URL` to the HTTPS API origin at build time; the Next.js bundle embeds this public endpoint. Set backend `CORS_ORIGINS` to the exact HTTPS website origin(s), without a path or trailing slash. Because administrator cookies use `SameSite=Lax`, deploy the web app and API on the same site (for example, sibling HTTPS subdomains) and verify that the browser accepts the API cookie. Do not use localhost fallbacks in a production build.
 
 ## Routes
 
 Public: `/`, `/approach`, `/methods`, `/methods/[slug]`, `/my-experiments`.
 
-Administrator: `/admin/login`, `/admin`, `/admin/methods`, `/admin/methods/new`, `/admin/methods/[id]`, `/admin/experiments`.
+Administrator: `/admin/login`, `/admin`, `/admin/methods`, `/admin/methods/new`, `/admin/methods/[id]`, `/admin/opportunities`, `/admin/experiments`.
+
+The participant site includes `/opportunities`, `/opportunities/[slug]`, the existing `/methods` detail and execution guides, and `/my-experiments`. Opportunities start directly in the participant tracker and use their own opportunity execution steps, even when no legacy method has the same slug. The local experiment store is version 2: previous unversioned and version 1 browser records migrate to method identities without loss, and method/opportunity entries with matching slugs stay distinct. Personal notes, time, attempts, costs and payment records stay in the browser. Pending payments are shown separately from received money; net calculations subtract fees, refunds and recorded costs and keep currencies separate.
 
 ## API overview
 
@@ -75,11 +79,19 @@ Public method reads:
 - `GET /api/methods/:slug`
 - `GET /api/methods/:slug/experiments` (approved records only)
 
+The additive opportunity research API is available for the separate opportunity records:
+
+- `GET /api/opportunities` (optional country, category and search filters)
+- `GET /api/opportunities/:slug` (published detail, current approved evidence and execution steps only)
+- Authenticated admin opportunity list/detail/create/edit, source review, criteria review, step replacement, publication/qualification and research experiment endpoints under `/api/admin/opportunities`.
+
+Opportunity publication and qualification are separate. A candidate may be published under validation; the backend only permits qualification when each of the four criteria passes with meaningful explanation and its own current, reviewed, approved source belonging to that same opportunity. All administrator writes require the existing session and CSRF token.
+
 Protected administrator methods and project experiments are documented in [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md). Every administrator mutation requires the existing session cookie and `x-csrf-token`. The browser never connects to MySQL.
 
 ## Checks
 
-From `backend/`: `npm run typecheck`, `npm run build`, `npm run test:unit`, and `npm run test:integration` (requires the isolated test database).
+From `backend/`: `npm run typecheck`, `npm run build`, `npm run test:unit`, `npm run test:integration`, and `npm run browser:e2e` (the integration and browser suites require the isolated test database; the browser suite also requires the Playwright Chromium install).
 
 From `frontend/`: `npm run typecheck` and `npm run build`. Linting is not currently configured.
 

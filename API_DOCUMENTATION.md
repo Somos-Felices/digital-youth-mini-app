@@ -1,7 +1,7 @@
 # Digital Youth — API Documentation
 
 Version: 1.0
-Date: 2026-11-03
+Date: 2026-11-04
 Backend: Express + TypeScript
 Database: MySQL 8
 
@@ -31,6 +31,8 @@ Response:
 
 Checks database connectivity.
 
+In `NODE_ENV=test`, the response identifies the connected schema so test runners can verify they are not using development data.
+
 Success: 200
 
 Response:
@@ -40,6 +42,31 @@ Response:
 }
 
 > **Product transition:** Business diagnostic endpoints below are retained legacy APIs for data preservation; the primary Digital Youth experience now uses the method platform in section 12. Existing diagnostic records have not been removed.
+
+## Opportunity research directory
+
+Migration 005 creates the separate opportunity directory; migration 006 adds execution steps, review history, source review metadata and research experiment records; migration 007 seeds the three existing candidates into that directory; migration 008 adds experiment evidence and estimated/pending/received payment records; migration 009 links a received payment to its supporting evidence. Their original method records remain available and are not deleted.
+
+Public reads:
+
+- `GET /api/opportunities?country=IN&category=...&search=...` lists published, in-date records and exposes criterion explanations but no internal notes or unapproved sources.
+- `GET /api/opportunities/:slug` returns a published detail, approved current sources and ordered steps.
+
+Administrator writes require the active admin session and `x-csrf-token`:
+
+- `GET /api/admin/opportunities` and `GET /api/admin/opportunities/:id`
+- `POST /api/admin/opportunities`; `PATCH /api/admin/opportunities/:id`
+- `POST /api/admin/opportunities/:id/sources`; `PATCH /api/admin/opportunities/:id/sources/:sourceId` edits a source and returns it to pending review; `PATCH /api/admin/opportunities/:id/sources/:sourceId/review` approves, rejects or archives it
+- `PATCH /api/admin/opportunities/:id/criteria/:code`
+- `PUT /api/admin/opportunities/:id/steps`
+- `POST /api/admin/opportunities/:id/experiments`; `GET /api/admin/opportunities/:id/experiments`; `PATCH /api/admin/opportunities/:id/experiments/:experimentId`
+- `POST /api/admin/opportunities/:id/experiments/:experimentId/evidence`; `PATCH /api/admin/opportunities/:id/experiments/:experimentId/evidence/:evidenceId/review`
+- `POST /api/admin/opportunities/:id/experiments/:experimentId/payments`
+- `PATCH /api/admin/opportunities/:id/publication`; `PATCH /api/admin/opportunities/:id/archive`
+
+The qualification gate runs in a transaction. Qualification requires exactly the four expected assessments, all passing with written explanations and current approved evidence tied to the same opportunity. Publishing with an unverified qualification sets it to `under_validation`; publication never itself grants qualification.
+
+An approved source is current through its `next_review_at` calendar date. Received research payments require a payment date, a selected `evidence_id`, and dated income evidence that is reviewed and approved on the same experiment. Estimated and pending payments may be recorded without asserting receipt. The legacy experiment income field is retained for historical compatibility but is not accepted as a new received-payment record.
 
 ## 3. Legacy Business Diagnostic Submission
 
