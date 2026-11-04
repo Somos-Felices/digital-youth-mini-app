@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Header, Footer, NumberedSection } from "@/components/chrome";
 import { request, readableError } from "@/lib/api";
 import { formatStatus, MethodContractError, parseMethodDetail, safeExternalUrl, type Method } from "@/lib/method-detail";
-import type { LocalExperiment } from "@/lib/types";
+import { parseLocalExperiments, serializeLocalExperiments } from "@/lib/localExperiments";
 
 type Evidence = { title: string; url: string | null; description: string; evidence_type: string; recorded_on: string | null };
 type PublicExperiment = { id: number; title: string; status: string; started_on: string | null; ended_on: string | null; actual_spending: number | null; actual_spending_currency: string | null; actual_income: number | null; actual_income_currency: string | null; tasks_completed: string; outputs_produced: string; problems_encountered: string; final_assessment: string; reviewed_at: string | null; evidence: Evidence[] };
@@ -52,10 +52,11 @@ export default function MethodDetail() {
     if (!method) return;
     try {
       const saved = localStorage.getItem("dy-local-experiments");
-      const entries = saved ? JSON.parse(saved) as LocalExperiment[] : [];
-      if (!Array.isArray(entries)) throw new Error("Invalid saved data");
-      if (!entries.some((entry) => entry?.slug === method.slug)) entries.push({ slug: method.slug, title: method.title, startedAt: new Date().toISOString(), completedSteps: [], paused: false, timeMinutes: 0, costs: [], income: [], outputs: [], notes: "" });
-      localStorage.setItem("dy-local-experiments", JSON.stringify(entries)); setStarted(true); router.push("/my-experiments");
+      const entries = saved ? parseLocalExperiments(JSON.parse(saved)) : [];
+      if (!entries) throw new Error("Invalid saved data");
+      const id = `method:${method.slug}`;
+      if (!entries.some((entry) => entry.id === id)) entries.push({ id, type: "method", slug: method.slug, title: method.title, startedAt: new Date().toISOString(), completedSteps: [], paused: false, timeMinutes: 0, costs: [], income: [], activities: [], outputs: [], notes: "" });
+      localStorage.setItem("dy-local-experiments", serializeLocalExperiments(entries)); setStarted(true); router.push("/my-experiments");
     } catch { setError("This browser could not save local experiment progress. Check storage settings and try again."); }
   }
 
