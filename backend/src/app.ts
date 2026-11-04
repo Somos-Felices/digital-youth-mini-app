@@ -16,6 +16,7 @@ import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import diagnosticSubmissionRouter from "./routes/diagnosticSubmission.routes.js";
 import { methodsAdminRouter, methodsPublicRouter } from "./routes/methods.routes.js";
+import { opportunityAdminRouter, opportunityPublicRouter } from "./routes/opportunities.routes.js";
 
 export function createApp() {
   const app = express();
@@ -60,6 +61,10 @@ export function createApp() {
     res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=10");
     next();
   });
+  app.use("/api/opportunities", (_req, res, next) => {
+    res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=10");
+    next();
+  });
 
   // General API rate limiting.
   app.use("/api", rateLimit({
@@ -74,6 +79,7 @@ export function createApp() {
 
   // Public, evidence-labeled independent-income method library.
   app.use("/api/methods", methodsPublicRouter);
+  app.use("/api/opportunities", opportunityPublicRouter);
 
   // API health.
   app.get("/api/health", (_req, res) => {
@@ -87,11 +93,11 @@ export function createApp() {
   // Database health.
   app.get("/api/health/db", async (_req, res, next) => {
     try {
-      await pool.query("SELECT 1");
+      const [rows] = await pool.query("SELECT DATABASE() AS database_name");
 
       res.status(200).json({
         status: "ok",
-        database: "connected"
+        database: env.NODE_ENV === "test" ? (rows as { database_name: string }[])[0]?.database_name : "connected"
       });
     } catch (error) {
       next(error);
@@ -108,6 +114,7 @@ export function createApp() {
   // Admin endpoints use database-backed administrator sessions.
   app.use("/api/admin", adminRouter);
   app.use("/api/admin", methodsAdminRouter);
+  app.use("/api/admin", opportunityAdminRouter);
 
   // 404 handler.
   app.use((_req, res) => {
