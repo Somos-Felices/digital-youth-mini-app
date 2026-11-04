@@ -59,6 +59,9 @@ router.get("/submissions", async (req, res, next) => {
           participant_name,
           business_name,
           business_type,
+          current_tools,
+          problem_areas,
+          biggest_operational_pain,
           pain_frequency,
           willingness_to_pay,
           follow_up_consent,
@@ -349,3 +352,4 @@ router.patch(
 );
 
 export default router;
+

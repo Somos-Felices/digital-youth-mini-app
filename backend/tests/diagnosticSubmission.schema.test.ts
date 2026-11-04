@@ -11,6 +11,7 @@ const validSubmission = {
   businessName: "Demo Business",
   businessType: "Retail",
   currentTools: ["whatsapp"],
+  problemAreas: ["bookings", "tourist_replies"],
   biggestOperationalPain:
     "Difficulty tracking customer orders and daily records.",
   painFrequency: "weekly",
@@ -113,3 +114,4 @@ describe("Diagnostic submission validation", () => {
     }
   });
 });
+

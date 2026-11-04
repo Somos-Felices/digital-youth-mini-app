@@ -9,13 +9,18 @@ const currentToolSchema = z.enum([
   "other"
 ]);
 
+const problemAreaSchema = z.enum([
+  "tourist_replies",
+  "social_media",
+  "bookings",
+  "translation",
+  "other"
+]);
+
 export const diagnosticSubmissionSchema = z.object({
   pilotLocation: z.string().trim().min(2).max(100),
-
   participantName: z.string().trim().min(2).max(120),
-
-  businessName: z.string().trim().max(160).optional().nullable(),
-
+  businessName: z.string().trim().min(2).max(160),
   businessType: z.string().trim().min(2).max(100),
 
   currentTools: z.array(currentToolSchema)
@@ -28,6 +33,14 @@ export const diagnosticSubmissionSchema = z.object({
     .refine(
       (tools) => !tools.includes("none") || tools.length === 1,
       "'None' cannot be combined with other tools"
+    ),
+
+  problemAreas: z.array(problemAreaSchema)
+    .min(1)
+    .max(5)
+    .refine(
+      (areas) => new Set(areas).size === areas.length,
+      "Duplicate problem areas are not allowed"
     ),
 
   biggestOperationalPain: z.string().trim().min(10).max(2000),
@@ -48,22 +61,11 @@ export const diagnosticSubmissionSchema = z.object({
   ]),
 
   budgetAmount: z.number().positive().max(999999999).optional().nullable(),
-
-  budgetCurrency: z.string()
-    .regex(/^[A-Z]{3}$/)
-    .optional()
-    .nullable(),
+  budgetCurrency: z.string().regex(/^[A-Z]{3}$/).optional().nullable(),
 
   followUpConsent: z.boolean().default(false),
-
   contactName: z.string().trim().max(120).optional().nullable(),
-
-  contactMethod: z.enum([
-    "whatsapp",
-    "phone",
-    "email"
-  ]).optional().nullable(),
-
+  contactMethod: z.enum(["whatsapp", "phone", "email"]).optional().nullable(),
   contactValue: z.string().trim().max(190).optional().nullable()
 }).superRefine((data, ctx) => {
   if (data.budgetAmount != null && !data.budgetCurrency) {

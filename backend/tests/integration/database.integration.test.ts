@@ -1,4 +1,4 @@
-import { after, before, beforeEach, test } from "node:test";
+﻿import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 
 import { resolve } from "node:path";
@@ -25,6 +25,7 @@ let testAdminId = 0;
 
 const TEST_ADMIN_EMAIL = "integration-admin@digital-youth.test";
 const TEST_ADMIN_PASSWORD = "Integration-Test-Admin-Password-2026!";
+let TEST_CURRENT_DATE = "";
 
 async function clearTestData(): Promise<void> {
   if (!pool) {
@@ -56,6 +57,18 @@ async function clearTestData(): Promise<void> {
   await pool.execute("DELETE FROM income_method_steps WHERE method_id IN (SELECT id FROM income_methods WHERE slug LIKE 'integration-%' OR slug IN ('candidate-private','qualification-gate','experiment-currency'))");
   await pool.execute("DELETE FROM income_method_criteria WHERE method_id IN (SELECT id FROM income_methods WHERE slug LIKE 'integration-%' OR slug IN ('candidate-private','qualification-gate','experiment-currency'))");
   await pool.execute("DELETE FROM income_methods WHERE slug LIKE 'integration-%' OR slug IN ('candidate-private','qualification-gate','experiment-currency')");
+  await pool.execute(`DELETE p FROM opportunity_research_payments p
+    INNER JOIN opportunity_research_experiments e ON e.id=p.experiment_id
+    INNER JOIN earning_opportunities o ON o.id=e.opportunity_id
+    WHERE o.slug LIKE 'integration-opportunity-%'`);
+  await pool.execute(`DELETE ev FROM opportunity_research_evidence ev
+    INNER JOIN opportunity_research_experiments e ON e.id=ev.experiment_id
+    INNER JOIN earning_opportunities o ON o.id=e.opportunity_id
+    WHERE o.slug LIKE 'integration-opportunity-%'`);
+  await pool.execute(`DELETE e FROM opportunity_research_experiments e
+    INNER JOIN earning_opportunities o ON o.id=e.opportunity_id
+    WHERE o.slug LIKE 'integration-opportunity-%'`);
+  await pool.execute("DELETE FROM earning_opportunities WHERE slug LIKE 'integration-opportunity-%'");
 
   await pool.execute(`DELETE h FROM business_diagnostic_status_history h
     INNER JOIN business_diagnostic_submissions s ON s.id = h.submission_id
@@ -72,6 +85,7 @@ const validPayload = {
   businessName: "Integration Test Cafe",
   businessType: "Food and Beverage",
   currentTools: ["whatsapp", "paper_records"],
+  problemAreas: ["bookings", "tourist_replies"],
   biggestOperationalPain:
     "Difficulty tracking customer orders and maintaining daily records.",
   painFrequency: "weekly",
@@ -131,6 +145,8 @@ before(async () => {
 
   app = application.createApp();
   pool = database.pool;
+  const [dateRows] = await pool.query<RowDataPacket[]>("SELECT DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d') AS today_value");
+  TEST_CURRENT_DATE = String(dateRows[0].today_value);
 
   await database.verifyDatabaseConnection();
   await clearTestData();
@@ -692,7 +708,7 @@ test("database health endpoint confirms MySQL connectivity", async () => {
 
   assert.equal(response.status, 200);
   assert.equal(response.body.status, "ok");
-  assert.equal(response.body.database, "connected");
+  assert.equal(response.body.database, "digital_youth_mini_app_test");
 });
 
 test("CORS rejects an untrusted browser origin", async () => {
@@ -732,6 +748,97 @@ test("admin detail endpoint rejects invalid submission IDs", async () => {
 
   assert.equal(response.status, 400);
 });
+
+test("public opportunity directory preserves candidates as unverified and exposes approved sources only", async () => {
+  const listing = await request(app).get("/api/opportunities");
+  assert.equal(listing.status, 200);
+  assert.equal(listing.body.opportunities.length, 3);
+  assert.ok(listing.body.opportunities.every((item: { qualification_status: string }) => item.qualification_status === "under_validation"));
+  const detail = await request(app).get("/api/opportunities/downloadable-practical-resource");
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.criteria.length, 4);
+  assert.ok(detail.body.criteria.every((item: { assessment: string }) => item.assessment === "not_verified"));
+  assert.ok(detail.body.sources.every((source: Record<string, unknown>) => !("approval_status" in source) && !("evidence_notes" in source)));
+  assert.ok(detail.body.steps.length > 0);
+});
+
+test("opportunity admin endpoints require the existing administrator session", async () => {
+  const response = await request(app).get("/api/admin/opportunities");
+  assert.equal(response.status, 401);
+});
+
+test("opportunity publication stays under validation and cannot bypass the qualification gate", async () => {
+  const created = await adminAgent.post("/api/admin/opportunities")
+    .set("x-csrf-token", adminCsrfToken)
+    .send({ slug: "integration-opportunity-gate", title: "Integration opportunity gate", provider: "Test source", description: "Candidate used to test the server qualification gate.", summary: "No earning claim.", earning_activity: "Perform one independently testable activity.", category: "Test", eligible_countries: [], supported_languages: [] });
+  assert.equal(created.status, 201);
+  const id = created.body.id;
+  const candidate = await adminAgent.patch(`/api/admin/opportunities/${id}/publication`)
+    .set("x-csrf-token", adminCsrfToken).send({ status: "published" });
+  assert.equal(candidate.status, 200);
+  assert.equal(candidate.body.qualification_status, "under_validation");
+  const attemptedQualification = await adminAgent.patch(`/api/admin/opportunities/${id}/publication`)
+    .set("x-csrf-token", adminCsrfToken).send({ status: "published", qualification_status: "qualified" });
+  assert.equal(attemptedQualification.status, 400);
+  const detail = await adminAgent.get(`/api/admin/opportunities/${id}`);
+  assert.equal(detail.body.opportunity.qualification_status, "under_validation");
+});
+
+test("source, criterion, experiment evidence, payment and review histories persist with qualification safeguards", async () => {
+  const created = await adminAgent.post("/api/admin/opportunities").set("x-csrf-token", adminCsrfToken)
+    .send({ slug: "integration-opportunity-evidence", title: "Integration evidence test", provider: "Test source", description: "Test candidate.", summary: "Test.", earning_activity: "Test.", category: "Test", eligible_countries: [], supported_languages: [] });
+  assert.equal(created.status, 201);
+  const id = created.body.id;
+  const source = await adminAgent.post(`/api/admin/opportunities/${id}/sources`).set("x-csrf-token", adminCsrfToken)
+    .send({ title: "Official evidence", url: "https://example.test/evidence", source_type: "official", claim: "Evidence claim with enough detail.", reviewed_at: null, next_review_at: TEST_CURRENT_DATE });
+  assert.equal(source.status, 201, JSON.stringify(source.body));
+  const sourceId = source.body.id;
+  const premature = await adminAgent.patch(`/api/admin/opportunities/${id}/sources/${sourceId}/review`).set("x-csrf-token", adminCsrfToken).send({ status: "approved" });
+  assert.equal(premature.status, 400);
+  const dated = await adminAgent.patch(`/api/admin/opportunities/${id}/sources/${sourceId}`).set("x-csrf-token", adminCsrfToken).send({ reviewed_at: "2026-11-03", next_review_at: TEST_CURRENT_DATE });
+  assert.equal(dated.status, 200);
+  const approved = await adminAgent.patch(`/api/admin/opportunities/${id}/sources/${sourceId}/review`).set("x-csrf-token", adminCsrfToken).send({ status: "approved" });
+  assert.equal(approved.status, 200);
+  const passed = await adminAgent.patch(`/api/admin/opportunities/${id}/criteria/phone_and_free_tools`).set("x-csrf-token", adminCsrfToken).send({ assessment: "pass", explanation: "This documented test source supports this criterion.", source_ids: [sourceId] });
+  assert.equal(passed.status, 200);
+  const edited = await adminAgent.patch(`/api/admin/opportunities/${id}/sources/${sourceId}`).set("x-csrf-token", adminCsrfToken).send({ claim: "Edited evidence claim with enough detail." });
+  assert.equal(edited.status, 200);
+  const blocked = await adminAgent.patch(`/api/admin/opportunities/${id}/criteria/phone_and_free_tools`).set("x-csrf-token", adminCsrfToken).send({ assessment: "pass", explanation: "Edited source is pending review and cannot support this.", source_ids: [sourceId] });
+  assert.equal(blocked.status, 400);
+
+  const experiment = await adminAgent.post(`/api/admin/opportunities/${id}/experiments`).set("x-csrf-token", adminCsrfToken)
+    .send({ hypothesis: "Test whether this process works", test_design: "Follow the documented conditions", tools_used: ["phone"], time_minutes: 45, expenses: 3.25, expense_currency: "USD", rejections: "First attempt rejected", status: "in_progress" });
+  assert.equal(experiment.status, 201);
+  const experimentId = experiment.body.id;
+  const updated = await adminAgent.patch(`/api/admin/opportunities/${id}/experiments/${experimentId}`).set("x-csrf-token", adminCsrfToken).send({ final_assessment: "Completed with a test output.", actual_output: "One output", status: "completed" });
+  assert.equal(updated.status, 200);
+  const evidence = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/evidence`).set("x-csrf-token", adminCsrfToken).send({ title: "Output capture", description: "Captured output for this experiment.", evidence_type: "output" });
+  assert.equal(evidence.status, 201);
+  const evidenceReview = await adminAgent.patch(`/api/admin/opportunities/${id}/experiments/${experimentId}/evidence/${evidence.body.id}/review`).set("x-csrf-token", adminCsrfToken).send({ status: "approved" });
+  assert.equal(evidenceReview.status, 200);
+  const estimated = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/payments`).set("x-csrf-token", adminCsrfToken).send({ payment_status: "estimated", amount: 100, currency: "USD" });
+  assert.equal(estimated.status, 201);
+  const receivedWithoutDate = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/payments`).set("x-csrf-token", adminCsrfToken).send({ payment_status: "received", amount: 10, currency: "USD" });
+  assert.equal(receivedWithoutDate.status, 400);
+  const receivedWithoutIncomeEvidence = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/payments`).set("x-csrf-token", adminCsrfToken).send({ payment_status: "received", amount: 10, currency: "USD", payment_date: "2026-11-03" });
+  assert.equal(receivedWithoutIncomeEvidence.status, 400);
+  const undatedIncome = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/evidence`).set("x-csrf-token", adminCsrfToken).send({ title: "Undated payment screenshot", description: "Payment evidence needs its actual capture date.", evidence_type: "income_record" });
+  assert.equal(undatedIncome.status, 201);
+  const rejectUndatedApproval = await adminAgent.patch(`/api/admin/opportunities/${id}/experiments/${experimentId}/evidence/${undatedIncome.body.id}/review`).set("x-csrf-token", adminCsrfToken).send({ status: "approved" });
+  assert.equal(rejectUndatedApproval.status, 400);
+  const incomeEvidence = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/evidence`).set("x-csrf-token", adminCsrfToken).send({ title: "Dated payment proof", description: "Receipt showing the actual payment received.", evidence_type: "income_record", captured_on: "2026-11-03" });
+  assert.equal(incomeEvidence.status, 201);
+  const incomeReview = await adminAgent.patch(`/api/admin/opportunities/${id}/experiments/${experimentId}/evidence/${incomeEvidence.body.id}/review`).set("x-csrf-token", adminCsrfToken).send({ status: "approved" });
+  assert.equal(incomeReview.status, 200);
+  const received = await adminAgent.post(`/api/admin/opportunities/${id}/experiments/${experimentId}/payments`).set("x-csrf-token", adminCsrfToken).send({ payment_status: "received", amount: 10, currency: "USD", payment_date: "2026-11-03", evidence_id: incomeEvidence.body.id });
+  assert.equal(received.status, 201);
+  const listing = await adminAgent.get(`/api/admin/opportunities/${id}/experiments`);
+  assert.ok(listing.body.experiments[0].evidence.some((e: { id: number; approval_status: string }) => e.id === incomeEvidence.body.id && e.approval_status === "approved"));
+  assert.deepEqual(listing.body.experiments[0].payments.map((p: { payment_status: string }) => p.payment_status).sort(), ["estimated", "received"]);
+  const history = await adminAgent.get(`/api/admin/opportunities/${id}`);
+  assert.ok(history.body.history.some((h: { event_type: string }) => h.event_type === "experiment_payment_recorded"));
+});
+
 test("logout revokes the administrator session", async () => {
   const logoutResponse = await adminAgent
     .post("/api/auth/logout")
@@ -743,3 +850,4 @@ test("logout revokes the administrator session", async () => {
 
   assert.equal(sessionResponse.status, 401);
 });
+

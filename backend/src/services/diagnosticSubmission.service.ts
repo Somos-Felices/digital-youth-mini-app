@@ -22,6 +22,7 @@ export async function createDiagnosticSubmission(
           business_name,
           business_type,
           current_tools,
+          problem_areas,
           biggest_operational_pain,
           pain_frequency,
           willingness_to_pay,
@@ -32,7 +33,7 @@ export async function createDiagnosticSubmission(
           contact_method,
           contact_value
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         submissionUuid,
@@ -41,6 +42,7 @@ export async function createDiagnosticSubmission(
         input.businessName?.trim() || null,
         input.businessType,
         JSON.stringify(input.currentTools),
+        JSON.stringify(input.problemAreas),
         input.biggestOperationalPain,
         input.painFrequency,
         input.willingnessToPay,
@@ -108,3 +110,4 @@ export async function createDiagnosticSubmission(
     connection.release();
   }
 }
+
