@@ -1,7 +1,7 @@
 # Digital Youth — API Documentation
 
-Version: 1.0
-Date: 2026-11-04
+Version: 1.1
+Date: 2026-11-07
 Backend: Express + TypeScript
 Database: MySQL 8
 
@@ -195,7 +195,71 @@ HTTP 201
 
 The database review status initially defaults to "new".
 
-## 4. Admin Authentication
+## 4. Current Field Visit Diagnostic (API v2)
+
+The active React + Vite Local Digital form posts to a separate, additive endpoint. The legacy route and table remain unchanged.
+
+### `POST /api/v2/field-visit-diagnostics`
+
+Public JSON endpoint. It uses the existing API-wide rate limit and configured CORS allowlist. The client generates a UUID before its first attempt and reuses it for retries.
+
+```json
+{
+  "submissionUuid": "e27b22df-4a9d-44e1-9e61-f7e20a2c4834",
+  "businessName": "Warung Contoh",
+  "businessType": "food_beverage",
+  "businessTypeOther": null,
+  "currentTools": ["whatsapp", "paper_pen"],
+  "toolsOther": null,
+  "biggestOperationalPain": "Pelanggan sering menunggu jawaban terlalu lama.",
+  "willingnessToPay": "maybe",
+  "contactName": null,
+  "whatsappNumber": null,
+  "followUpConsent": false
+}
+```
+
+Allowed `businessType` values: `food_beverage`, `accommodation`, `retail`, `services`, `other`. `businessTypeOther` is required only for `other` and is limited to 100 characters.
+
+Allowed `currentTools` values: `whatsapp`, `paper_pen`, `spreadsheet`, `nothing`, `other`. The array must contain 1–5 unique values. `nothing` is mutually exclusive. `toolsOther` is required only when `other` is selected and is limited to 120 characters.
+
+`businessName` is required (1–140 characters); `biggestOperationalPain` is required (1–500 characters); `willingnessToPay` is `yes`, `maybe`, or `no`. No pilot location, participant name, pain category, frequency or budget is collected or inferred.
+
+Contact fields are nullable. If `followUpConsent` is false, both contact fields must be empty or null and are stored as SQL `NULL`. If it is true, a valid international-format WhatsApp number is required; the contact name remains optional. The schema has a database check constraint protecting this rule as well as server-side validation.
+
+New submissions return HTTP 201 with `submission.status: "received"`. A retry using the same UUID and identical canonical answers returns HTTP 200 with `duplicate: true`. Reusing a UUID with different answers returns HTTP 409. Validation failures return HTTP 400. The API stores a SHA-256 digest for idempotency comparison and does not replace an earlier record.
+
+```json
+{
+  "message": "Field visit diagnostic received",
+  "submission": {
+    "submissionUuid": "e27b22df-4a9d-44e1-9e61-f7e20a2c4834",
+    "status": "received",
+    "duplicate": false
+  }
+}
+```
+
+### Field compatibility matrix
+
+| Current React field | API v2 mapping | MySQL v2 column | Legacy API/table status |
+|---|---|---|---|
+| `businessName` | Same field | `business_name` | Legacy allows null; current form requires a value |
+| `businessType` | Fixed category token | `business_type` enum | Legacy string can hold a label, but does not store `businessTypeOther` separately |
+| `businessTypeOther` | Same, only for Other | `business_type_other` | No dedicated legacy column |
+| `tools` | Localized labels map to stable tool tokens | `current_tools` JSON | Tokens differ (`paper_pen`/`spreadsheet`/`nothing` vs `paper_records`/`spreadsheets`/`none`); no lossy translation is made |
+| `toolsOther` | Same, only with Other selected | `tools_other` | No dedicated legacy column |
+| `pain` | `biggestOperationalPain` | `biggest_operational_pain` | Compatible text concept; legacy limit is 2,000 vs v2's 500 |
+| `willingness` | `willingnessToPay` (`yes`, `maybe`, `no`) | `willingness_to_pay` enum | Compatible subset; legacy additionally permits `unsure` |
+| `contactName` | Sent only with consent, otherwise null | `contact_name` | Legacy has a consent-gated contact name |
+| `whatsapp` | `whatsappNumber`, sent only with consent | `whatsapp_number` | Legacy stores contact as `contact_method` + `contact_value` |
+| `consent` | `followUpConsent` | `follow_up_consent` | Same consent concept |
+| Client generated UUID | `submissionUuid` | `submission_uuid` unique | Legacy UUID is server-generated; v2 key supports safe retry |
+| Not asked in current form | Not sent | No v2 column | Legacy requires `pilotLocation`, `participantName`, `problemAreas`, `painFrequency`; the legacy table also requires frequency and location/participant. Budget is optional and not collected. |
+
+Migration `012_field_visit_diagnostics.sql` creates the new table and registers itself in `schema_migrations`. It does not change or backfill historical rows in `business_diagnostic_submissions`.
+
+## 5. Admin Authentication
 
 Administrator authentication uses database-backed accounts and server-side sessions.
 

@@ -1,0 +1,10 @@
+@media (max-width: 560px) {
+  .submit-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin-inline: -5vw;
+    padding: 13px 5vw max(13px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(16, 19, 16, 0.88), #101310 22%);
+  }
+}

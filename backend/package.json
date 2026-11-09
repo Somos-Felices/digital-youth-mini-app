@@ -9,8 +9,8 @@
         "start": "node dist/server.js",
         "typecheck": "tsc --noEmit",
         "db:migrate": "tsx src/scripts/migrate.ts",
-        "test:integration": "tsx --test tests/integration/database.integration.test.ts",
-        "test:unit": "tsx --test tests/diagnosticSubmission.schema.test.ts tests/incomeMethods.schema.test.ts tests/methodDetail.contract.test.ts tests/localExperiments.contract.test.ts tests/opportunityQualification.test.ts",
+        "test:integration": "tsx --test tests/integration/database.integration.test.ts tests/integration/fieldVisitDiagnostic.integration.test.ts",
+        "test:unit": "tsx --test tests/diagnosticSubmission.schema.test.ts tests/fieldVisitDiagnostic.schema.test.ts tests/incomeMethods.schema.test.ts tests/methodDetail.contract.test.ts tests/localExperiments.contract.test.ts tests/opportunityQualification.test.ts",
         "browser:e2e": "node ../scripts/local-browser-e2e.cjs",
         "admin:create": "tsx src/scripts/createAdmin.ts"
     },

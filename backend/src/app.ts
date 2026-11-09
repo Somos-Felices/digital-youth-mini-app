@@ -15,6 +15,7 @@ import { pool } from "./config/database.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import diagnosticSubmissionRouter from "./routes/diagnosticSubmission.routes.js";
+import fieldVisitDiagnosticRouter from "./routes/fieldVisitDiagnostic.routes.js";
 import { methodsAdminRouter, methodsPublicRouter } from "./routes/methods.routes.js";
 import { opportunityAdminRouter, opportunityPublicRouter } from "./routes/opportunities.routes.js";
 
@@ -109,6 +110,9 @@ export function createApp() {
     "/api/diagnostic-submissions",
     diagnosticSubmissionRouter
   );
+
+  // Versioned endpoint for the current five-step Local Digital field visit.
+  app.use("/api/v2/field-visit-diagnostics", fieldVisitDiagnosticRouter);
 
   // Existing admin routes.
   // Admin endpoints use database-backed administrator sessions.

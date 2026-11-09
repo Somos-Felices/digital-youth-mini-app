@@ -1,100 +1,89 @@
-# Digital Youth — Independent Digital Income
+# Local Digital / Digital Youth
 
-Digital Youth helps a young person explore practical digital income methods they can investigate and test independently with a phone and accessible tools. The platform documents requirements, distribution, costs, risks and actual evidence; it does not promise earnings.
+This repository contains the mobile-first Local Digital business-visit diagnostic and the existing Digital Youth backend/admin platform. The active public frontend is a React 19, Vite, TypeScript and React Router single-page app. Bahasa Indonesia is the default language; English is available in the header.
 
-## Product principles
+## Active field-visit flow
 
-Every candidate method is assessed against four requirements:
+The public diagnostic has five input steps: business name/type, tools, operational pain, willingness to pay, and optional contact. Its draft is stored in IndexedDB. When the API URL is not configured, a completed response is saved locally and the confirmation says it has not reached the team. When the API URL is configured, the frontend queues an idempotent local copy and submits to the versioned endpoint. A server-confirmed message is shown only after an acknowledged response. Failed sends remain on the device for manual retry; there is no background sync.
 
-1. Start with a phone and free or clearly costed tools.
-2. Execute independently without Somos Felices or its resources.
-3. Start without professional credentials or pre-existing trust, while disclosing identity and eligibility requirements.
-4. Operate without meetings or sales calls.
+The service worker caches the application shell and same-origin assets after first use. This supports offline reopening after the app has been loaded online. IndexedDB persistence and offline page loading are separate behaviors; run the preview browser check to verify both.
 
-Each criterion has a `pass`, `conditional`, `fail` or `not_verified` result and a written explanation. A method may only be qualified when all four pass and each links to an approved evidence source. Initial method records are marked **under validation** and contain no experiment or earning claims.
+## Frontend development
 
-Personal visitor experiment progress (checklist, time, costs, outputs, actual received income and notes) is stored in that visitor’s browser. It is not uploaded to the API by default.
-
-## Technology and structure
-
-- `frontend/`: Next.js App Router, React, TypeScript and Tailwind CSS.
-- `backend/`: Express 5, TypeScript, Zod and MySQL.
-- `docs/migrations/`: append-only SQL migrations. Migration 005 adds the opportunity directory; migration 006 adds execution steps, audit history, source review metadata and project research experiments; migration 007 seeds the three candidates; migration 008 adds research evidence and payment records; migration 009 links received payments to their approved income evidence. Original method and diagnostic records remain intact.
-- Admin authentication keeps the existing Argon2id, HttpOnly session cookie and CSRF-protected session flow.
-
-The previous business diagnostic API, schema and records remain in place for data preservation, but are no longer part of the main visitor experience.
-
-## Backend setup
-
-Use Node.js 20+ and MySQL 8+. In `backend/`:
+Use Node.js 20+. In `frontend/`:
 
 ```powershell
-npm install
-Copy-Item .env.example .env
+npm ci
+Copy-Item .env.example .env.local
+npm run dev
 ```
 
-Set the database and migration credentials in `backend/.env`. Keep secrets out of source control. Apply migrations additively to the intended development database:
+The app runs at `http://localhost:5173`. Set `VITE_API_BASE_URL` to the API origin (for local development, `http://localhost:4000`). An empty or unset value keeps the form in explicit local-only mode. This variable is a public API origin, never a secret.
+
+```powershell
+npm run typecheck
+npm run build
+npm run preview
+```
+
+The production build is written to `frontend/dist`. The preview uses port 5173, as does the development server, so stop one before starting the other.
+
+## Backend and database
+
+In `backend/`, copy `.env.example` to `.env` and configure the restricted application user and separate migration user for the intended MySQL 8 database. Keep credentials out of source control. The API runs on port 4000 and exposes `GET /api/health` and `GET /api/health/db`.
+
+The legacy `POST /api/diagnostic-submissions` route and its historical table remain unchanged. The active form uses `POST /api/v2/field-visit-diagnostics`, backed by the additive `field_visit_diagnostic_submissions` table. The v2 contract and field compatibility matrix are documented in [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md).
+
+After confirming the target database is the intended development database, apply additive migrations with:
 
 ```powershell
 npm run db:migrate
 ```
 
-For integration tests, configure `backend/.env.test` to use only `digital_youth_mini_app_test`, apply the migration runner with that isolated database configuration, and then run the tests. Never run test cleanup against the development database.
-
-Run the API on port 4000:
+The integration test environment must point only to `digital_youth_mini_app_test`. It applies no migrations by itself; use the migration runner with the test database configured before running the test suite:
 
 ```powershell
-npm run dev
+$env:MIGRATION_DB_NAME = 'digital_youth_mini_app_test'
+npm run db:migrate
+Remove-Item Env:MIGRATION_DB_NAME
+npm test
 ```
 
-## Frontend setup
+The integration suite verifies the selected database before cleaning only its known test fixtures. Do not run its cleanup against development data.
 
-In `frontend/`, install dependencies and copy the environment example:
+The browser-to-MySQL acceptance test uses the isolated `backend/.env.test` configuration and `digital_youth_mini_app_test`; it refuses other databases. In `backend/`, start the API on port 4001 with:
 
 ```powershell
-npm install
-Copy-Item .env.example .env.local
-npm run dev
+node -e "require('dotenv').config({path:'.env.test',override:true}); process.env.PORT='4001'; require('./dist/server.js')"
 ```
 
-The frontend runs at `http://localhost:5173` and uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`. Ensure backend `CORS_ORIGINS` permits `http://localhost:5173`. Admin browser requests use credentialed fetches; do not expose the HttpOnly session cookie to JavaScript.
+Then run `node scripts/field-visit-e2e.test.cjs` from the repository root. This test requires installed Chrome, independently verifies two fictional submissions and both consent states, tests a failed request and idempotent retry, then deletes only the two exact generated submission UUIDs from the test database. It never writes to the shared development database.
 
-Install Playwright's pinned Chromium once with `npx playwright install chromium` from `frontend/`. From `backend/`, `npm run browser:e2e` builds both apps and starts its own frontend and API on available local ports. It refuses to run unless `.env.test` selects `digital_youth_mini_app_test`, verifies the API's connected database, and removes its unique temporary opportunity and administrator in foreign-key-safe order.
+## Browser QA
 
-For production, set `NEXT_PUBLIC_API_BASE_URL` to the HTTPS API origin at build time; the Next.js bundle embeds this public endpoint. Set backend `CORS_ORIGINS` to the exact HTTPS website origin(s), without a path or trailing slash. Because administrator cookies use `SameSite=Lax`, deploy the web app and API on the same site (for example, sibling HTTPS subdomains) and verify that the browser accepts the API cookie. Do not use localhost fallbacks in a production build.
+The focused Playwright test starts its own Vite server on port 5173 and uses installed Chrome when available. Stop other dev/preview servers first. To test the local-only flow:
 
-## Routes
+```powershell
+npm run test:e2e
+```
 
-Public: `/`, `/approach`, `/methods`, `/methods/[slug]`, `/my-experiments`.
+To verify offline shell caching and offline IndexedDB saves against the production preview, build with the API unset for the local-only scenario, stop other servers on 5173, start `npm run preview`, then run:
 
-Administrator: `/admin/login`, `/admin`, `/admin/methods`, `/admin/methods/new`, `/admin/methods/[id]`, `/admin/opportunities`, `/admin/experiments`.
+```powershell
+npm run build
+$env:TEST_PREVIEW = '1'
+npm run test:e2e
+Remove-Item Env:TEST_PREVIEW
+```
 
-The participant site includes `/opportunities`, `/opportunities/[slug]`, the existing `/methods` detail and execution guides, and `/my-experiments`. Opportunities start directly in the participant tracker and use their own opportunity execution steps, even when no legacy method has the same slug. The local experiment store is version 2: previous unversioned and version 1 browser records migrate to method identities without loss, and method/opportunity entries with matching slugs stay distinct. Personal notes, time, attempts, costs and payment records stay in the browser. Pending payments are shown separately from received money; net calculations subtract fees, refunds and recorded costs and keep currencies separate.
+Screenshots are written to `test-screenshots/local-digital-redesign-mobile.png` and `test-screenshots/local-digital-redesign-desktop.png`.
 
-## API overview
+The former `scripts/local-browser-e2e.cjs`, `scripts/verify-mvp.cjs`, and `scripts/verify-visit-experience.cjs` target older Next.js and multi-page experiences. They are legacy checks and are not the active Vite browser suite. The original backend methods/opportunities endpoints and admin routes remain available, but are not part of the public five-step field visit.
 
-Public method reads:
+## Deployment preparation (not a deployment instruction)
 
-- `GET /api/methods` (optional `status` and `category` filters)
-- `GET /api/methods/:slug`
-- `GET /api/methods/:slug/experiments` (approved records only)
+For Vercel, set the project root to `frontend`, use `npm run build`, and publish `dist`. `frontend/vercel.json` provides the React Router fallback. Configure `VITE_API_BASE_URL` to a publicly reachable HTTPS backend origin and set the backend's `CORS_ORIGINS` to the exact deployed frontend origin (no trailing slash). A phone cannot reach a developer's `localhost`; remote submissions require the backend to be hosted and reachable over HTTPS. No deployment has been performed.
 
-The additive opportunity research API is available for the separate opportunity records:
+## Security notes
 
-- `GET /api/opportunities` (optional country, category and search filters)
-- `GET /api/opportunities/:slug` (published detail, current approved evidence and execution steps only)
-- Authenticated admin opportunity list/detail/create/edit, source review, criteria review, step replacement, publication/qualification and research experiment endpoints under `/api/admin/opportunities`.
-
-Opportunity publication and qualification are separate. A candidate may be published under validation; the backend only permits qualification when each of the four criteria passes with meaningful explanation and its own current, reviewed, approved source belonging to that same opportunity. All administrator writes require the existing session and CSRF token.
-
-Protected administrator methods and project experiments are documented in [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md). Every administrator mutation requires the existing session cookie and `x-csrf-token`. The browser never connects to MySQL.
-
-## Checks
-
-From `backend/`: `npm run typecheck`, `npm run build`, `npm run test:unit`, `npm run test:integration`, and `npm run browser:e2e` (the integration and browser suites require the isolated test database; the browser suite also requires the Playwright Chromium install).
-
-From `frontend/`: `npm run typecheck` and `npm run build`. Linting is not currently configured.
-
-Production starts use `npm start` from `backend/` and `npm start` from `frontend/`, after setting production database, API URL and exact HTTPS CORS origins. Confirm the built frontend has the intended API URL before release.
-
-Never report a test, migration or build as successful unless it was actually run. The seed candidate methods deliberately show unknowns and no fabricated results.
+The browser never connects to MySQL. V2 submissions use server-side Zod validation, parameterized SQL, an API rate limit, a UUID idempotency key, a unique database index, and a payload digest to reject changed content under a reused key. Contact values are stripped client-side without consent, rejected server-side without consent, and protected by a database check constraint. The application API user has no schema-alter privilege; migrations use a separate account.
