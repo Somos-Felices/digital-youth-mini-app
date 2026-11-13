@@ -1,4 +1,4 @@
-﻿import mysql from "mysql2/promise";
+import mysql from "mysql2/promise";
 import { env } from "./env.js";
 
 export const pool = mysql.createPool({
@@ -7,6 +7,8 @@ export const pool = mysql.createPool({
   database: env.DB_NAME,
   user: env.DB_USER,
   password: env.DB_PASSWORD,
+
+  ssl: env.DB_SSL ? { minVersion: "TLSv1.2" } : undefined,
 
   waitForConnections: true,
   connectionLimit: env.DB_CONNECTION_LIMIT,

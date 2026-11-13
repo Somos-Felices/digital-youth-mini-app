@@ -28,3 +28,6 @@ frontend/digital-youth-source.zip
 *.cleanup-backup
 
 scripts/local-browser-e2e.cjs.backup
+
+# Local deployment backups
+deployment-backup/

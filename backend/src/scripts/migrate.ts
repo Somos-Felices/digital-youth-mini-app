@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -37,6 +37,8 @@ async function runMigrations(): Promise<void> {
     "docs",
     "migrations"
   );
+
+  const migrationSsl = (process.env.MIGRATION_DB_SSL ?? process.env.DB_SSL ?? "false") === "true";
 
   const connection = await mysql.createConnection({
     host,
