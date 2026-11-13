@@ -26,3 +26,5 @@ test-screenshots/
 *.log
 frontend/digital-youth-source.zip
 *.cleanup-backup
+
+scripts/local-browser-e2e.cjs.backup
