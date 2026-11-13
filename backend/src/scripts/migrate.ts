@@ -46,6 +46,7 @@ async function runMigrations(): Promise<void> {
     database,
     user,
     password,
+    ssl: migrationSsl ? { minVersion: "TLSv1.2" } : undefined,
     multipleStatements: true,
     charset: "utf8mb4"
   });

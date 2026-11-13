@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 **/node_modules/
 
@@ -31,3 +31,6 @@ scripts/local-browser-e2e.cjs.backup
 
 # Local deployment backups
 deployment-backup/
+
+# Production database credentials
+backend/.env.production

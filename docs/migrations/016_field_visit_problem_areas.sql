@@ -31,7 +31,7 @@ SET @has_willingness = (
 );
 SET @drop_willingness = IF(
     @has_willingness > 0,
-    'ALTER TABLE field_visit_diagnostic_submissions MODIFY COLUMN willingness_to_pay ENUM(''yes'', ''maybe'', ''no'') NULL',
+    'ALTER TABLE field_visit_diagnostic_submissions MODIFY COLUMN willingness_to_pay ENUM(''yes'', ''maybe'', ''no'') CHARACTER SET ascii COLLATE ascii_bin NULL',
     'SELECT 1'
 );
 PREPARE drop_willingness_stmt FROM @drop_willingness;

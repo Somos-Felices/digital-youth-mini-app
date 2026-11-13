@@ -1,4 +1,4 @@
-﻿-- Digital Youth: pilot locations, participants and learning.
+-- Digital Youth: pilot locations, participants and learning.
 -- Additive migration. Historical migrations 001-012 are untouched.
 
 CREATE TABLE IF NOT EXISTS pilot_sites (
@@ -21,24 +21,41 @@ VALUES
     (2, 'bengaluru', 'Bengaluru', 'Bengaluru', 'Karnataka', 'IN');
 
 ALTER TABLE field_visit_diagnostic_submissions
-    ADD COLUMN pilot_site_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER id,
-    ADD COLUMN review_status ENUM(
-        'new','under_review','prioritised','deferred','rejected','matched','resolved'
-    ) NOT NULL DEFAULT 'new',
-    ADD COLUMN priority ENUM('low','normal','high','urgent') NULL DEFAULT NULL,
-    ADD COLUMN coordinator_notes TEXT NULL,
-    ADD COLUMN reviewed_by_admin_id BIGINT UNSIGNED NULL,
-    ADD COLUMN reviewed_at DATETIME NULL,
-    ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-    ADD KEY idx_field_visit_site_status (pilot_site_id, review_status, created_at),
-    ADD KEY idx_field_visit_priority (priority, created_at),
+    ADD COLUMN pilot_site_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER id;
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD COLUMN review_status ENUM('new','under_review','prioritised','deferred','rejected','matched','resolved') NOT NULL DEFAULT 'new';
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD COLUMN priority ENUM('low','normal','high','urgent') NULL DEFAULT NULL;
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD COLUMN coordinator_notes TEXT NULL;
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD COLUMN reviewed_by_admin_id BIGINT UNSIGNED NULL;
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD COLUMN reviewed_at DATETIME NULL;
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD KEY idx_field_visit_site_status (pilot_site_id, review_status, created_at);
+
+ALTER TABLE field_visit_diagnostic_submissions
+    ADD KEY idx_field_visit_priority (priority, created_at);
+
+ALTER TABLE field_visit_diagnostic_submissions
     ADD CONSTRAINT fk_field_visit_site
-        FOREIGN KEY (pilot_site_id) REFERENCES pilot_sites(id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    FOREIGN KEY (pilot_site_id) REFERENCES pilot_sites(id)
+    ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+ALTER TABLE field_visit_diagnostic_submissions
     ADD CONSTRAINT fk_field_visit_reviewer
-        FOREIGN KEY (reviewed_by_admin_id) REFERENCES admin_users(id)
-        ON DELETE SET NULL ON UPDATE RESTRICT;
+    FOREIGN KEY (reviewed_by_admin_id) REFERENCES admin_users(id)
+    ON DELETE SET NULL ON UPDATE RESTRICT;
 
 CREATE TABLE IF NOT EXISTS participant_invitations (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
