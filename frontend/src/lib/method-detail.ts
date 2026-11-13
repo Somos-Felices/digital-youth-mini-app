@@ -1,4 +1,4 @@
-export type Criterion = { criterion_code: string; assessment: string; explanation: string; source_ids: number[] };
+﻿export type Criterion = { criterion_code: string; assessment: string; explanation: string; source_ids: number[] };
 export type MethodStep = { step_number: number; title: string; what_to_do: string; how_to_do: string; tool_names: string; output: string; success_looks_like: string; common_problems: string; alternatives: string };
 export type MethodTool = { id?: number; name: string; purpose: string; official_url: string | null; free_conditions: string; limitations: string; phone_usable: string; last_verified: string | null };
 export type MethodSource = { id: number; title: string; url: string; source_type: string; accessed_at: string | null; last_verified_at: string | null; supports_claim: string; supports_area: string };

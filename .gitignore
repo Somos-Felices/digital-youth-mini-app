@@ -15,3 +15,14 @@ dist/
 *.log
 
 test-screenshots/
+
+# Local build and development artifacts
+.next/
+.vite/
+coverage/
+playwright-report/
+test-results/
+test-screenshots/
+*.log
+frontend/digital-youth-source.zip
+*.cleanup-backup

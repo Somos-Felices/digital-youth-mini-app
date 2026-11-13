@@ -63,7 +63,7 @@ async function main() {
   assert.equal(process.env.DB_NAME, 'digital_youth_mini_app_test', 'Browser E2E refuses any database other than digital_youth_mini_app_test.');
   assert.equal(process.env.NODE_ENV, 'test', 'Browser E2E requires NODE_ENV=test.');
   npm(['run', 'build'], backend);
-  npm(['run', 'build'], frontend, { ...process.env, NODE_ENV: 'production', NEXT_PUBLIC_API_BASE_URL: 'http://localhost:4000' });
+  npm(['run', 'build'], frontend, { ...process.env, NODE_ENV: 'production', VITE_API_BASE_URL: 'http://localhost:4000' });
 
   db = await mysql.createConnection({ host: process.env.MIGRATION_DB_HOST || process.env.DB_HOST, port: Number(process.env.MIGRATION_DB_PORT || process.env.DB_PORT), database: process.env.MIGRATION_DB_NAME, user: process.env.MIGRATION_DB_USER || process.env.DB_USER, password: process.env.MIGRATION_DB_PASSWORD || process.env.DB_PASSWORD });
   const [oldAdmins] = await db.execute("SELECT id FROM admin_users WHERE email LIKE 'browser-e2e-%@digital-youth.test' AND display_name IN ('Temporary Browser Test Admin','Temporary Playwright Admin')");
@@ -82,7 +82,7 @@ async function main() {
   const apiEnv = { ...process.env, PORT: String(apiPort), NODE_ENV: 'test', CORS_ORIGINS: `http://localhost:${appPort}` };
   const apiChild = ownProcess(process.execPath, [path.join(backend, 'dist', 'server.js')], backend, apiEnv);
   await waitForHealth(apiChild, `http://127.0.0.1:${apiPort}/api/health/db`, state => state.status === 'ok' && state.database === 'digital_youth_mini_app_test');
-  const appChild = ownProcess(process.execPath, [path.join(frontend, 'node_modules', 'next', 'dist', 'bin', 'next'), 'start', '-p', String(appPort)], frontend, { ...process.env, NODE_ENV: 'production', PORT: String(appPort) });
+  const appChild = ownProcess(process.execPath, [process.env.npm_execpath, 'run', 'preview', '--', '--host', '127.0.0.1', '--port', String(appPort), '--strictPort'], frontend, { ...process.env, NODE_ENV: 'production', PORT: String(appPort), VITE_API_BASE_URL: 'http://localhost:4000' });
   base = `http://localhost:${appPort}`;
   await waitForDocument(appChild, base);
 
@@ -334,3 +334,4 @@ main().catch(error => { runFailure = error; }).finally(async () => {
   if (runFailure) { console.error(runFailure); process.exitCode = 1; }
   if (cleanupFailure) { console.error('E2E cleanup failed:', cleanupFailure); process.exitCode = 1; }
 });
+

@@ -25,7 +25,7 @@ const payload = {
   currentTools: ["whatsapp", "paper_pen"],
   toolsOther: null,
   biggestOperationalPain: "Difficulty responding to customer questions and maintaining daily records.",
-  willingnessToPay: "maybe",
+  problemAreas: ["tourist_replies", "bookings"],
   contactName: null,
   whatsappNumber: null,
   followUpConsent: false
@@ -64,7 +64,7 @@ test("receives and idempotently stores the exact five-step diagnostic", async ()
 
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT submission_uuid, payload_hash, business_name, business_type, current_tools,
-      biggest_operational_pain, willingness_to_pay, contact_name, whatsapp_number,
+      biggest_operational_pain, problem_areas, contact_name, whatsapp_number,
       follow_up_consent, created_at
      FROM field_visit_diagnostic_submissions WHERE submission_uuid = ?`,
     [withoutConsentUuid]
@@ -75,7 +75,8 @@ test("receives and idempotently stores the exact five-step diagnostic", async ()
   const storedTools = typeof rows[0].current_tools === "string" ? JSON.parse(rows[0].current_tools) : rows[0].current_tools;
   assert.deepEqual(storedTools, ["whatsapp", "paper_pen"]);
   assert.equal(rows[0].biggest_operational_pain, payload.biggestOperationalPain);
-  assert.equal(rows[0].willingness_to_pay, "maybe");
+  const storedProblemAreas = typeof rows[0].problem_areas === "string" ? JSON.parse(rows[0].problem_areas) : rows[0].problem_areas;
+  assert.deepEqual(storedProblemAreas, payload.problemAreas);
   assert.equal(rows[0].follow_up_consent, 0);
   assert.equal(rows[0].contact_name, null);
   assert.equal(rows[0].whatsapp_number, null);

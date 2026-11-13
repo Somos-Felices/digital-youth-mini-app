@@ -9,7 +9,7 @@ export type FieldVisitPayload = {
   currentTools: Array<"whatsapp" | "paper_pen" | "spreadsheet" | "nothing" | "other">;
   toolsOther: string | null;
   biggestOperationalPain: string;
-  willingnessToPay: "yes" | "maybe" | "no";
+  problemAreas: Array<"tourist_replies" | "social_media" | "bookings" | "translation" | "other">;
   contactName: string | null;
   whatsappNumber: string | null;
   followUpConsent: boolean;
@@ -26,12 +26,11 @@ export function toFieldVisitPayload(data: Diagnostic, lang: Language, submission
   const toolValues: Record<number, FieldVisitPayload["currentTools"][number]> = {
     0: "whatsapp", 1: "paper_pen", 2: "spreadsheet", 3: "nothing", 4: "other"
   };
-  const willingnessIndex = labels.willingness.indexOf(data.willingness as never);
-  const willingnessValues: FieldVisitPayload["willingnessToPay"][] = ["yes", "maybe", "no"];
+  const problemAreaValues: FieldVisitPayload["problemAreas"] = ["tourist_replies", "social_media", "bookings", "translation", "other"];
   const selectedToolIndexes = data.tools.map((tool) => labels.tools.indexOf(tool as never)).filter((index) => index >= 0);
   const businessType = typeValues[typeIndex];
-  const willingnessToPay = willingnessValues[willingnessIndex];
-  if (!businessType || !willingnessToPay || selectedToolIndexes.length !== data.tools.length) {
+  const selectedProblemAreas = data.problemAreas.map((area) => labels.problemAreas.indexOf(area as never));
+  if (!businessType || selectedToolIndexes.length !== data.tools.length || selectedProblemAreas.some((index) => index < 0)) {
     throw new Error("The selected answers could not be mapped to the submission contract.");
   }
   return {
@@ -42,7 +41,7 @@ export function toFieldVisitPayload(data: Diagnostic, lang: Language, submission
     currentTools: selectedToolIndexes.map((index) => toolValues[index]),
     toolsOther: data.tools.includes(labels.tools[4]) ? data.toolsOther.trim() || null : null,
     biggestOperationalPain: data.pain.trim(),
-    willingnessToPay,
+    problemAreas: selectedProblemAreas.map((index) => problemAreaValues[index]),
     contactName: data.consent ? data.contactName.trim() || null : null,
     whatsappNumber: data.consent ? data.whatsapp.trim() || null : null,
     followUpConsent: data.consent

@@ -18,6 +18,10 @@ import diagnosticSubmissionRouter from "./routes/diagnosticSubmission.routes.js"
 import fieldVisitDiagnosticRouter from "./routes/fieldVisitDiagnostic.routes.js";
 import { methodsAdminRouter, methodsPublicRouter } from "./routes/methods.routes.js";
 import { opportunityAdminRouter, opportunityPublicRouter } from "./routes/opportunities.routes.js";
+import participantRouter from "./routes/participants.routes.js";
+import participantAdminRouter from "./routes/participantAdmin.routes.js";
+import { learningAdminRouter, learningPublicRouter } from "./routes/learning.routes.js";
+import { projectAdminRouter, projectParticipantRouter, businessReviewRouter } from "./routes/projects.routes.js";
 
 export function createApp() {
   const app = express();
@@ -54,7 +58,7 @@ export function createApp() {
 
   // Private responses must never enter a browser or intermediary cache. The
   // public method catalogue is content-only and receives a short bounded TTL.
-  app.use(["/api/auth", "/api/admin"], (_req, res, next) => {
+  app.use(["/api/auth", "/api/admin", "/api/participants", "/api/learning", "/api/projects", "/api/business"], (_req, res, next) => {
     res.setHeader("Cache-Control", "private, no-store");
     next();
   });
@@ -119,6 +123,13 @@ export function createApp() {
   app.use("/api/admin", adminRouter);
   app.use("/api/admin", methodsAdminRouter);
   app.use("/api/admin", opportunityAdminRouter);
+  app.use("/api/admin", participantAdminRouter);
+  app.use("/api/admin", learningAdminRouter);
+  app.use("/api/admin", projectAdminRouter);
+  app.use("/api/participants", participantRouter);
+  app.use("/api/learning", learningPublicRouter);
+  app.use("/api/projects", projectParticipantRouter);
+  app.use("/api/business", businessReviewRouter);
 
   // 404 handler.
   app.use((_req, res) => {
@@ -165,7 +176,15 @@ export function createApp() {
       });
     }
 
-    console.error("API error:", error);
+    // Do not print driver messages, request bodies, cookies or tokens. Database
+    // errors can include SQL and bound values, including personal information.
+    const safeError = error instanceof Error ? error : new Error("Unknown error");
+    console.error("API error", {
+      name: safeError.name,
+      code: typeof error === "object" && error !== null && "code" in error
+        ? String(error.code).slice(0, 80)
+        : undefined
+    });
 
     res.status(500).json({
       error: "Internal server error"

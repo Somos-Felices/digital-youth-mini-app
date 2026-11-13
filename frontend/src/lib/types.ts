@@ -1,4 +1,4 @@
-export type Admin = { id: number; email: string; displayName: string };
+﻿export type Admin = { id: number; email: string; displayName: string };
 export type Pagination = { page: number; limit: number; total: number; totalPages: number };
 export type LocalLedgerEntry = { date: string; amount: number; currency: string; note: string; status?: "pending" | "received"; deductions?: number; refunds?: number; reference?: string };
 export type LocalActivity = { date: string; kind: "application" | "distribution" | "rejection" | "sale" | "other"; description: string; outcome: string };

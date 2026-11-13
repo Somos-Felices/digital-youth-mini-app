@@ -1,4 +1,4 @@
-import type { LocalActivity, LocalExperiment, LocalLedgerEntry } from "@/lib/types";
+﻿import type { LocalActivity, LocalExperiment, LocalLedgerEntry } from "@/lib/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function ledger(value: unknown, income = false): LocalLedgerEntry[] | null {

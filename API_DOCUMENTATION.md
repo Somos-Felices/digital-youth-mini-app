@@ -212,7 +212,7 @@ Public JSON endpoint. It uses the existing API-wide rate limit and configured CO
   "currentTools": ["whatsapp", "paper_pen"],
   "toolsOther": null,
   "biggestOperationalPain": "Pelanggan sering menunggu jawaban terlalu lama.",
-  "willingnessToPay": "maybe",
+  "problemAreas": ["tourist_replies", "bookings"],
   "contactName": null,
   "whatsappNumber": null,
   "followUpConsent": false
@@ -223,7 +223,7 @@ Allowed `businessType` values: `food_beverage`, `accommodation`, `retail`, `serv
 
 Allowed `currentTools` values: `whatsapp`, `paper_pen`, `spreadsheet`, `nothing`, `other`. The array must contain 1–5 unique values. `nothing` is mutually exclusive. `toolsOther` is required only when `other` is selected and is limited to 120 characters.
 
-`businessName` is required (1–140 characters); `biggestOperationalPain` is required (1–500 characters); `willingnessToPay` is `yes`, `maybe`, or `no`. No pilot location, participant name, pain category, frequency or budget is collected or inferred.
+`businessName` is required (1–140 characters); `biggestOperationalPain` is required (1–500 characters); `problemAreas` must contain 1–5 unique values from `tourist_replies`, `social_media`, `bookings`, `translation`, or `other`. The current flow does not ask about price, willingness to pay, frequency or budget.
 
 Contact fields are nullable. If `followUpConsent` is false, both contact fields must be empty or null and are stored as SQL `NULL`. If it is true, a valid international-format WhatsApp number is required; the contact name remains optional. The schema has a database check constraint protecting this rule as well as server-side validation.
 
@@ -250,14 +250,14 @@ New submissions return HTTP 201 with `submission.status: "received"`. A retry us
 | `tools` | Localized labels map to stable tool tokens | `current_tools` JSON | Tokens differ (`paper_pen`/`spreadsheet`/`nothing` vs `paper_records`/`spreadsheets`/`none`); no lossy translation is made |
 | `toolsOther` | Same, only with Other selected | `tools_other` | No dedicated legacy column |
 | `pain` | `biggestOperationalPain` | `biggest_operational_pain` | Compatible text concept; legacy limit is 2,000 vs v2's 500 |
-| `willingness` | `willingnessToPay` (`yes`, `maybe`, `no`) | `willingness_to_pay` enum | Compatible subset; legacy additionally permits `unsure` |
+| `problemAreas` | Same field using stable tokens | `problem_areas` JSON | Legacy also contains problem areas but has a different broader submission contract |
 | `contactName` | Sent only with consent, otherwise null | `contact_name` | Legacy has a consent-gated contact name |
 | `whatsapp` | `whatsappNumber`, sent only with consent | `whatsapp_number` | Legacy stores contact as `contact_method` + `contact_value` |
 | `consent` | `followUpConsent` | `follow_up_consent` | Same consent concept |
 | Client generated UUID | `submissionUuid` | `submission_uuid` unique | Legacy UUID is server-generated; v2 key supports safe retry |
-| Not asked in current form | Not sent | No v2 column | Legacy requires `pilotLocation`, `participantName`, `problemAreas`, `painFrequency`; the legacy table also requires frequency and location/participant. Budget is optional and not collected. |
+| Not asked in current form | Not sent | No v2 column | Legacy requires `pilotLocation`, `participantName`, and `painFrequency`; budget is optional and not collected. Historical `willingness_to_pay` values are retained as nullable legacy data and are not written by new submissions. |
 
-Migration `012_field_visit_diagnostics.sql` creates the new table and registers itself in `schema_migrations`. It does not change or backfill historical rows in `business_diagnostic_submissions`.
+Migration `012_field_visit_diagnostics.sql` creates the new table. Migration 016 adds problem areas, and 017 restores a nullable legacy willingness column for databases that already ran the earlier version of 016. New submissions do not write that historical field. The legacy `business_diagnostic_submissions` table is unchanged.
 
 ## 5. Admin Authentication
 

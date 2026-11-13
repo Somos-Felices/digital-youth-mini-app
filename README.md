@@ -4,7 +4,7 @@ This repository contains the mobile-first Local Digital business-visit diagnosti
 
 ## Active field-visit flow
 
-The public diagnostic has five input steps: business name/type, tools, operational pain, willingness to pay, and optional contact. Its draft is stored in IndexedDB. When the API URL is not configured, a completed response is saved locally and the confirmation says it has not reached the team. When the API URL is configured, the frontend queues an idempotent local copy and submits to the versioned endpoint. A server-confirmed message is shown only after an acknowledged response. Failed sends remain on the device for manual retry; there is no background sync.
+The public diagnostic has five input steps: business name/type, current tools, operational pain, problem areas, and optional WhatsApp contact with explicit follow-up consent. It does not ask about pricing or willingness to pay. Drafts and completed visits are stored in IndexedDB. When the API URL is not configured, the confirmation says the visit has not reached the team. When the API URL is configured, the frontend queues an idempotent local copy and submits to the versioned endpoint. A server-confirmed message appears only after an acknowledged response. Failed sends remain on the device for manual retry; there is no background sync.
 
 The service worker caches the application shell and same-origin assets after first use. This supports offline reopening after the app has been loaded online. IndexedDB persistence and offline page loading are separate behaviors; run the preview browser check to verify both.
 
@@ -82,7 +82,7 @@ The former `scripts/local-browser-e2e.cjs`, `scripts/verify-mvp.cjs`, and `scrip
 
 ## Deployment preparation (not a deployment instruction)
 
-For Vercel, set the project root to `frontend`, use `npm run build`, and publish `dist`. `frontend/vercel.json` provides the React Router fallback. Configure `VITE_API_BASE_URL` to a publicly reachable HTTPS backend origin and set the backend's `CORS_ORIGINS` to the exact deployed frontend origin (no trailing slash). A phone cannot reach a developer's `localhost`; remote submissions require the backend to be hosted and reachable over HTTPS. No deployment has been performed.
+For Vercel, set the project root to `frontend`, use `npm run build`, and publish `dist`. `frontend/vercel.json` provides the React Router fallback. Configure `VITE_API_BASE_URL` to a publicly reachable HTTPS backend origin and set the backend's `CORS_ORIGINS` to the exact deployed frontend origin (no trailing slash). Production session cookies use `Secure`, `HttpOnly`, and `SameSite=None` so credentialed requests can work across the frontend/API origins; browsers may still block third-party cookies across unrelated domains, so use custom domains under the same site or a same-origin API proxy. A phone cannot reach a developer's `localhost`; remote submissions require the backend to be hosted and reachable over HTTPS. No deployment has been performed.
 
 ## Security notes
 

@@ -1,4 +1,4 @@
--- Add a separate schema for the current five-step field-visit MVP.
+-- Add a separate schema for the five-step field-visit MVP.
 -- The legacy business_diagnostic_submissions table and its records are unchanged.
 CREATE TABLE IF NOT EXISTS field_visit_diagnostic_submissions (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 
 import { env } from "../config/env.js";
+import { getSessionCookieOptions } from "../config/sessionCookies.js";
 import {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_TTL_MS,
@@ -42,12 +43,7 @@ function originIsAllowed(origin: string | undefined): boolean {
   return allowedOrigins.includes(origin);
 }
 
-const cookieOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/api"
-};
+const cookieOptions = getSessionCookieOptions(env.NODE_ENV);
 
 // POST /api/auth/login
 router.post("/login", loginLimiter, async (req, res, next) => {

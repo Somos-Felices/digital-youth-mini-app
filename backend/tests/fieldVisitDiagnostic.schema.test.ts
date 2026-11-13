@@ -10,7 +10,7 @@ const valid = {
   currentTools: ["whatsapp", "paper_pen"],
   toolsOther: null,
   biggestOperationalPain: "Pelanggan sering menunggu jawaban terlalu lama.",
-  willingnessToPay: "maybe",
+  problemAreas: ["tourist_replies", "bookings"],
   contactName: null,
   whatsappNumber: null,
   followUpConsent: false

@@ -18,7 +18,7 @@ export async function createFieldVisitDiagnostic(input: FieldVisitDiagnosticInpu
     currentTools: input.currentTools,
     toolsOther: input.currentTools.includes("other") ? input.toolsOther?.trim() || null : null,
     biggestOperationalPain: input.biggestOperationalPain,
-    willingnessToPay: input.willingnessToPay,
+    problemAreas: input.problemAreas,
     contactName: input.followUpConsent ? input.contactName?.trim() || null : null,
     whatsappNumber: input.followUpConsent ? input.whatsappNumber?.trim() || null : null,
     followUpConsent: input.followUpConsent
@@ -28,7 +28,7 @@ export async function createFieldVisitDiagnostic(input: FieldVisitDiagnosticInpu
     await pool.execute<ResultSetHeader>(
       `INSERT INTO field_visit_diagnostic_submissions (
         submission_uuid, payload_hash, business_name, business_type, business_type_other,
-        current_tools, tools_other, biggest_operational_pain, willingness_to_pay,
+        current_tools, tools_other, biggest_operational_pain, problem_areas,
         contact_name, whatsapp_number, follow_up_consent
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -40,7 +40,7 @@ export async function createFieldVisitDiagnostic(input: FieldVisitDiagnosticInpu
         JSON.stringify(input.currentTools),
         input.currentTools.includes("other") ? input.toolsOther?.trim() || null : null,
         input.biggestOperationalPain,
-        input.willingnessToPay,
+        JSON.stringify(input.problemAreas),
         input.followUpConsent ? input.contactName?.trim() || null : null,
         input.followUpConsent ? input.whatsappNumber?.trim() || null : null,
         input.followUpConsent

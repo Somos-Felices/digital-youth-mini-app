@@ -1,4 +1,4 @@
-export type MethodListItem = { id: number; slug: string; title: string; category: string; summary: string; status: string; criteria: { criterion_code: string; assessment: string }[] };
+﻿export type MethodListItem = { id: number; slug: string; title: string; category: string; summary: string; status: string; criteria: { criterion_code: string; assessment: string }[] };
 export class MethodListContractError extends Error { constructor() { super("The method library returned incomplete or invalid data. Please try again later."); this.name = "MethodListContractError"; } }
 export function parseMethodList(value: unknown): MethodListItem[] {
   if (typeof value !== "object" || value === null || !("methods" in value) || !Array.isArray(value.methods)) throw new MethodListContractError();

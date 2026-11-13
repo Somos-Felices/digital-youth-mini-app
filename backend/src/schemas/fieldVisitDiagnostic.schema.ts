@@ -16,6 +16,14 @@ const toolSchema = z.enum([
   "other"
 ]);
 
+const problemAreaSchema = z.enum([
+  "tourist_replies",
+  "social_media",
+  "bookings",
+  "translation",
+  "other"
+]);
+
 export const fieldVisitDiagnosticSchema = z.object({
   submissionUuid: z.string().uuid(),
   businessName: z.string().trim().min(1).max(140),
@@ -28,7 +36,10 @@ export const fieldVisitDiagnosticSchema = z.object({
     .refine((items) => !items.includes("nothing") || items.length === 1, "Nothing cannot be combined with other tools"),
   toolsOther: z.string().trim().max(120).optional().nullable(),
   biggestOperationalPain: z.string().trim().min(1).max(500),
-  willingnessToPay: z.enum(["yes", "maybe", "no"]),
+  problemAreas: z.array(problemAreaSchema)
+    .min(1)
+    .max(5)
+    .refine((items) => new Set(items).size === items.length, "Duplicate problem areas are not allowed"),
   contactName: z.string().trim().max(140).optional().nullable(),
   whatsappNumber: z.string().trim().max(80).optional().nullable(),
   followUpConsent: z.boolean()

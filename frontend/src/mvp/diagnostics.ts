@@ -1,4 +1,4 @@
-export type Diagnostic = { businessName: string; businessType: string; businessTypeOther: string; tools: string[]; toolsOther: string; pain: string; willingness: string; contactName: string; whatsapp: string; consent: boolean };
+export type Diagnostic = { businessName: string; businessType: string; businessTypeOther: string; tools: string[]; toolsOther: string; problemAreas: string[]; pain: string; contactName: string; whatsapp: string; consent: boolean };
 export type SubmissionStatus = "pending" | "failed" | "received" | "local_only";
 type Draft = Diagnostic & { step: number; submissionUuid?: string; updatedAt: string };
 type Submission = Diagnostic & { id: string; createdAt: string; status: SubmissionStatus };
