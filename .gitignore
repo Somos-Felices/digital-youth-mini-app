@@ -34,3 +34,5 @@ deployment-backup/
 
 # Production database credentials
 backend/.env.production
+
+.vercel
