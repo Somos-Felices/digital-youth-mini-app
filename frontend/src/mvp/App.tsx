@@ -5,6 +5,43 @@ import { remoteSubmissionEnabled, sendFieldVisitDiagnostic, toFieldVisitPayload 
 
 const empty: Diagnostic = { businessName: "", businessType: "", businessTypeOther: "", tools: [], toolsOther: "", problemAreas: [], pain: "", contactName: "", whatsapp: "", consent: false };
 
+
+// Bilingual first-time user guide for the five-step business diagnostic.
+function UserGuide({ lang, onClose }: { lang: Language; onClose: () => void }) {
+  const en = {
+    title: "How to use this form", intro: "A simple guide to completing your business visit.", close: "Close guide",
+    steps: [
+      ["1","Business details","Enter the business name and choose the type that best describes it. If you choose Other, specify the type."],
+      ["2","Current tools","Select every tool the business currently uses. Choose Nothing if no tools are used, or Other to specify another tool."],
+      ["3","Daily challenges","Describe what takes the most time or makes serving customers difficult. A short, honest example is enough."],
+      ["4","Problem areas","Select every area that feels difficult, such as customer replies, social media, bookings or translation."],
+      ["5","Contact (optional)","You can leave your name and WhatsApp number blank. If you enter a number, tick the consent box before submitting."]
+    ],
+    tipsTitle: "Helpful tips",
+    tips: ["Use Continue to move forward and Back to review an earlier step.","Your draft is saved on this device as you go. Return using the same browser and device.","Do not enter passwords, private messages, customer records or payment details.","After submitting, wait for confirmation. If sending fails, check your connection and use Retry submission."]
+  };
+  const id = {
+    title: "Cara menggunakan formulir ini", intro: "Panduan singkat untuk menyelesaikan kunjungan usaha.", close: "Tutup panduan",
+    steps: [
+      ["1","Informasi usaha","Masukkan nama usaha dan pilih jenis yang paling sesuai. Jika memilih Lainnya, jelaskan jenis usahanya."],
+      ["2","Alat yang digunakan","Pilih semua alat yang saat ini digunakan. Pilih Belum menggunakan alat apa pun jika memang tidak ada, atau Lainnya untuk menyebutkan alat lain."],
+      ["3","Tantangan sehari-hari","Ceritakan pekerjaan yang paling menyita waktu atau menyulitkan pelayanan pelanggan. Contoh singkat dan jujur sudah cukup."],
+      ["4","Bidang masalah","Pilih semua bidang yang terasa sulit, seperti membalas pelanggan, media sosial, pemesanan, atau terjemahan."],
+      ["5","Kontak (opsional)","Nama dan nomor WhatsApp boleh dikosongkan. Jika mengisi nomor, centang persetujuan sebelum mengirim."]
+    ],
+    tipsTitle: "Beberapa tips",
+    tips: ["Gunakan Lanjutkan untuk ke langkah berikutnya dan Kembali untuk meninjau langkah sebelumnya.","Draf tersimpan di perangkat ini selama Anda mengisi. Lanjutkan dengan browser dan perangkat yang sama.","Jangan masukkan kata sandi, pesan pribadi, data pelanggan, atau detail pembayaran.","Setelah mengirim, tunggu konfirmasi. Jika gagal, periksa koneksi lalu pilih Coba kirim lagi."]
+  };
+  const t = lang === "en" ? en : id;
+  return <div className="guide-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+      <div className="guide-heading"><div><p className="eyebrow">DIGITAL YOUTH</p><h2 id="guide-title">{t.title}</h2><p>{t.intro}</p></div><button type="button" className="guide-close" onClick={onClose} aria-label={t.close}><span className="guide-close-icon" aria-hidden="true" /></button></div>
+      <ol className="guide-steps">{t.steps.map(([number,title,body]) => <li key={number}><span className="guide-number">{number}</span><div><h3>{title}</h3><p>{body}</p></div></li>)}</ol>
+      <div className="guide-tips"><h3>{t.tipsTitle}</h3><ul>{t.tips.map((tip) => <li key={tip}>{tip}</li>)}</ul></div>
+      <button type="button" className="primary-button guide-done" onClick={onClose}>{t.close}</button>
+    </section>
+  </div>;
+}
 export function App() {
   const [lang, setLang] = useState<Language>(() => localStorage.getItem("local-digital-language") === "en" ? "en" : "id");
   const [step, setStep] = useState(1);
@@ -15,6 +52,7 @@ export function App() {
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const t = copy[lang];
 
   useEffect(() => { document.documentElement.lang = lang; localStorage.setItem("local-digital-language", lang); }, [lang]);
@@ -84,7 +122,7 @@ export function App() {
   function restart() { setData(empty); setStep(1); setSubmissionUuid(""); setErrors([]); setDone(false); setSaveError(false); }
   const has = (field: string) => errors.includes(field);
   const errorText = <p className="field-error" role="alert">{t.requiredError}</p>;
-  const fieldLabel = (label: string, field: string) => <label className="field-label" htmlFor={field}>{label}{has(field) && <span className="sr-only"> — {t.requiredError}</span>}</label>;
+  const fieldLabel = (label: string, field: string) => <label className="field-label" htmlFor={field}>{label}{has(field) && <span className="sr-only">Required: {t.requiredError}</span>}</label>;
   const choice = (label: string, selected: boolean, action: () => void, role: "radio" | "checkbox" = "radio") => <button type="button" className={`select-row ${selected ? "selected" : ""}`} role={role} aria-checked={selected} onClick={action} key={label}><span className={role === "checkbox" ? "checkbox-mark" : "radio-mark"} aria-hidden="true">{selected ? "✓" : ""}</span><span>{label}</span></button>;
 
   let content: ReactNode;
@@ -103,5 +141,6 @@ export function App() {
     <div className="actions"><button className="back-button" disabled={step === 1} onClick={() => void goToStep(Math.max(1, step - 1))}>{t.back}</button>{step < 5 ? <button className="primary-button" onClick={next}>{t.continue}<span aria-hidden="true">→</span></button> : <button className="primary-button" disabled={saving} onClick={() => void submit()}>{saving ? (remoteSubmissionEnabled ? t.sending : t.saving) : saveError && remoteSubmissionEnabled ? t.retry : t.submit}</button>}</div>
   </>;
 
-  return <div className="app-shell"><header className="site-header"><a href="/" className="site-brand"><span className="site-mark">dy</span><span>DIGITAL<br />YOUTH</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/business/intake">Business</a><a href="/participant">Youth</a><a href="/coordinator">Coordinator</a></nav><div className="language-switch" aria-label={t.language}><button className={lang === "id" ? "active" : ""} onClick={() => changeLanguage("id")} aria-pressed={lang === "id"}>ID</button><span aria-hidden="true">|</span><button className={lang === "en" ? "active" : ""} onClick={() => changeLanguage("en")} aria-pressed={lang === "en"}>EN</button></div></header><main className="main-content">{ready ? content : <div className="loading-state" role="status">{t.loading}</div>}</main><footer className="footer-note">{t.footer}</footer></div>;
+  return <div className="app-shell"><header className="site-header"><a href="/" className="site-brand"><span className="site-mark">dy</span><span>DIGITAL<br />YOUTH</span></a><nav aria-label="Main navigation"><a href="/">Home</a><a href="/business/intake">Business</a><a href="/participant">Youth</a><a href="/coordinator">Coordinator</a></nav><button className="guide-trigger" type="button" onClick={() => setShowGuide(true)}>{lang === "en" ? "How to use" : "Panduan"}</button><div className="language-switch" aria-label={t.language}><button className={lang === "id" ? "active" : ""} onClick={() => changeLanguage("id")} aria-pressed={lang === "id"}>ID</button><span aria-hidden="true">|</span><button className={lang === "en" ? "active" : ""} onClick={() => changeLanguage("en")} aria-pressed={lang === "en"}>EN</button></div></header><main className="main-content">{ready ? content : <div className="loading-state" role="status">{t.loading}</div>}</main>{showGuide && <UserGuide lang={lang} onClose={() => setShowGuide(false)} />}<footer className="footer-note">{t.footer}</footer></div>;
 }
+
